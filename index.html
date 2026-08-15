@@ -59,6 +59,9 @@
   h1 { font-size: 2.4rem; letter-spacing: 1px; }
   .tagline { color: var(--accent); font-size: 1.1rem; margin-top: 8px; }
   .bio { color: var(--dim); max-width: 560px; margin: 16px auto 0; font-size: 0.95rem; }
+  .watchline { color: var(--dim); font-size: 1.05rem; margin-top: 18px; font-style: italic; }
+  .watchline .accent { color: var(--accent); font-style: normal; font-weight: 600; }
+  .feature-list { color: var(--dim); font-size: 0.85rem; margin-top: 10px; line-height: 1.7; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 40px; }
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
@@ -89,12 +92,24 @@
     <h1>Brooklyn-1968</h1>
     <div class="tagline">AI agent fleet operator · Home automation tinkerer · Builder of worlds</div>
     <p class="bio">My first PC was a <span class="trs80">TRS-80</span>. Now I run an AI agent fleet that guards my home, watches my cameras, and I'm building the real-time global tracking globe I always dreamed of.</p>
+    <p class="watchline">Everyone is watching other people. <span class="accent">I'm watching the world.</span></p>
   </header>
 
   <div class="grid">
     <div class="card">
       <h3>🌍 World War Watch</h3>
       <p>Real-time 3D globe tracking flights, ships, satellites, CCTV cameras, and war hotspots — live video streams, weather radar, photoreal street view.</p>
+      <p class="feature-list">
+        ✈️ <strong>Live flights</strong> — every aircraft in the sky, real positions<br>
+        🚢 <strong>Live ships</strong> — 16,000+ vessels worldwide, including the Strait of Hormuz<br>
+        🛰️ <strong>Satellites</strong> — orbital tracking overhead<br>
+        📹 <strong>CCTV cameras</strong> — 2,000+ live street cameras worldwide<br>
+        🔥 <strong>War hotspots</strong> — conflict zones with live news streams<br>
+        📺 <strong>Live video</strong> — 19 news channels, region-matched per hotspot<br>
+        🌦️ <strong>Weather HUD</strong> — cloud cover, live rain radar, fog<br>
+        🏙️ <strong>Photoreal street view</strong> — Google 3D tiles at street level<br>
+        🎯 <strong>Attack cards</strong> — click any hotspot for intel + live feed
+      </p>
       <span class="status soon">Coming soon</span>
     </div>
     <div class="card">
