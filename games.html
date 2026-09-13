@@ -82,6 +82,44 @@
   footer { text-align: center; color: var(--dim); font-size: 0.8rem; margin-top: 60px; }
   .back { text-align: center; margin-top: 32px; }
   .back a { color: var(--accent); text-decoration: none; }
+
+  /* ===== Animations (pure CSS — runs in any browser, no installs) ===== */
+  @keyframes glowPulse {
+    0%, 100% { box-shadow: 0 0 8px 0 rgba(79,195,247,0.0), 0 0 0 0 rgba(129,199,132,0.0); }
+    50%      { box-shadow: 0 0 18px 2px rgba(79,195,247,0.35), 0 0 0 2px rgba(129,199,132,0.15); }
+  }
+  @keyframes floatY {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-6px); }
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes titleGlow {
+    0%, 100% { text-shadow: 0 0 12px rgba(79,195,247,0.25); }
+    50%      { text-shadow: 0 0 24px rgba(79,195,247,0.55); }
+  }
+  /* Stagger the cards in so they slide up one after another */
+  .card { animation: fadeUp 0.6s ease-out both; }
+  .card:nth-child(1) { animation-delay: 0.05s; }
+  .card:nth-child(2) { animation-delay: 0.18s; }
+  .card:nth-child(3) { animation-delay: 0.31s; }
+  .card:nth-child(4) { animation-delay: 0.44s; }
+  /* Gentle float on idle so the tiles "breathe" */
+  .card:hover { animation: glowPulse 2.4s infinite ease-in-out; }
+  .card .status.live { animation: glowPulse 2.6s infinite ease-in-out; }
+  .play-link { position: relative; transition: transform 0.2s; }
+  .play-link:hover { transform: translateY(-2px); animation: floatY 1.6s infinite ease-in-out; }
+  h1 { animation: titleGlow 3s infinite alternate ease-in-out; }
+
+  /* Respect users who prefer less motion / keep it snappy on old hardware */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+    }
+  }
 </style>
 </head>
 <body>
