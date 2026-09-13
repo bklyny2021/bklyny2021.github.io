@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lo-Lifes Spades</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+body { background:#0f172a; }
+.poker-felt {
+  background-color:#1b4d3e;
+  background-image: radial-gradient(circle,#276753 1px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+.card-face { width:64px; height:90px; border-radius:8px; background:#fff; display:flex; flex-direction:column; justify-content:space-between; padding:4px; box-shadow:0 2px 8px rgba(0,0,0,.4); cursor:pointer; transition: transform .15s, box-shadow .15s; position:relative; font-family:'Segoe UI Emoji','Apple Color Emoji',sans-serif; }
+.card-face:hover:not(.dimmed) { transform:translateY(-12px); box-shadow:0 8px 16px rgba(0,0,0,.5); z-index:10; }
+.card-face.dimmed { opacity:.45; pointer-events:none; }
+.card-back { width:48px; height:68px; border-radius:6px; background:linear-gradient(135deg,#1e3a5f,#2563eb); border:2px solid #60a5fa; display:inline-flex; align-items:center; justify-content:center; color:#60a5fa; font-weight:bold; font-size:10px; margin:-12px; box-shadow:0 1px 4px rgba(0,0,0,.3); }
+.card-back-img { width:48px; height:68px; border-radius:6px; margin:-12px; box-shadow:0 1px 4px rgba(0,0,0,.35); overflow:hidden; flex-shrink:0; }
+.trick-card { width:56px; height:80px; border-radius:6px; background:#fff; display:flex; flex-direction:column; justify-content:space-between; padding:3px; box-shadow:0 2px 10px rgba(0,0,0,.5); animation:dealCard .3s ease-out; font-family:'Segoe UI Emoji','Apple Color Emoji',sans-serif; }
+@keyframes dealCard { from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
+/* deal: cards fly in from a table origin (top-center is the "deck") */
+@keyframes flyDeal { from{opacity:0;transform:translateY(-30vh) scale(.4) rotate(8deg);} to{opacity:1;transform:translateY(0) scale(1) rotate(0);} }
+.deal-fly { animation: flyDeal .35s ease-out backwards; }
+/* play: card snaps from hand to center */
+@keyframes snapIn { from{opacity:0;transform:scale(.3);} to{opacity:1;transform:scale(1);} }
+.play-snap { animation: snapIn .22s ease-out; }
+/* win: cards fly toward winner and fade the non-winning side down */
+@keyframes winPop { 0%{transform:translateY(6px) scale(1);} 100%{transform:translateY(0) scale(1.08);} }
+.win-pop { animation: winPop .3s ease-out; box-shadow:0 0 16px 2px rgba(255,215,0,.55); z-index:20 !important; position:relative; }
+@keyframes collectAway { to{opacity:0;transform:scale(.4) translateY(14px);} }
+.collect-away { animation: collectAway .4s ease-in forwards; }
+.suit-spades { color:#1e293b; } .suit-hearts { color:#dc2626; } .suit-diamonds { color:#dc2626; } .suit-clubs { color:#1e293b; } .suit-joker { color:#7c3aed; }
+.log-scroll::-webkit-scrollbar { width:4px; } .log-scroll::-webkit-scrollbar-thumb { background:#334155;border-radius:4px; }
+.bidding-btn { min-width:40px; text-align:center; }
+.round-modal-enter { animation: modalIn .3s ease-out; }
+@keyframes modalIn { from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)} }
+@media(max-width:768px){
+  .card-face { width:48px; height:68px; font-size:10px; }
+  .trick-card { width:44px; height:62px; }
+}
+</style>
+</head>
+<body class="text-slate-100 font-sans select-none h-screen flex flex-col overflow-hidden">
+
+<!-- HEADER / SCOREBOARD -->
+<header class="bg-slate-900/90 backdrop-blur border-b border-emerald-800 px-3 py-2 shrink-0">
+<div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+  <div class="flex items-center gap-3">
+    <span class="text-xl">♠️</span>
+    <h1 class="font-black text-lg tracking-wide text-emerald-400">◆ LO-LIFES SPADES ◆</h1>
+    <span id="round-badge" class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400">Round 1</span>
+    <span id="spades-status" class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400">Spades sealed</span>
+    <span title="Street rules: Big Joker > Little Joker > 2 of Diamonds > 2 of Spades are the top 4 trumps" class="text-[10px] bg-purple-950/60 px-2 py-0.5 rounded-full text-purple-300 border border-purple-700/50">STREET: Joker-Joker-Deuce-Deuce</span>
+  </div>
+  <div class="flex items-center gap-4 text-sm">
+    <!-- Team US -->
+    <div class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-1 border border-blue-500/30"><span class="w-2.5 h-2.5 rounded-full bg-blue-400 inline-block"></span><span class="text-blue-300 font-bold text-xs">US (N+S)</span><span id="score-us" class="font-mono font-black text-xl text-emerald-400">0</span><span class="text-[10px] text-slate-400 font-bold">bags:<span id="bags-us" class="text-amber-400">0</span></span></div>
+    <div class="w-px h-5 bg-slate-700"></div>
+    <!-- Team THEM -->
+    <div class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-1 border border-red-500/30"><span class="w-2.5 h-2.5 rounded-full bg-red-400 inline-block"></span><span class="text-red-300 font-bold text-xs">THEM (W+E)</span><span id="score-them" class="font-mono font-black text-xl text-emerald-400">0</span><span class="text-[10px] text-slate-400 font-bold">bags:<span id="bags-them" class="text-amber-400">0</span></span></div>
+  </div>
+  <button onclick="resetGame()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded transition">New Game</button>
+  <button onclick="toggleSound(); this.classList.toggle('opacity-40')" id="sound-btn" title="Toggle sound" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold px-2.5 py-1.5 rounded transition">🔊</button>
+</div>
+<!-- Trick tracker bar -->
+<div class="max-w-7xl mx-auto mt-1 pt-1 border-t border-slate-800 flex items-center justify-center gap-4 text-[11px]">
+  <span class="text-blue-300">US books: <b id="us-tricks-display">0</b>/<b id="us-target-display">-</b></span>
+  <span class="text-slate-600">|</span>
+  <span class="text-red-300">THEM books: <b id="them-tricks-display">0</b>/<b id="them-target-display">-</b></span>
+  <span class="text-slate-600">|</span>
+  <span id="phase-label" class="text-amber-400 font-semibold">Dealing...</span>
+</div>
+</header>
+
+<!-- MAIN GAME AREA -->
+<main class="poker-felt relative flex-1 min-h-0 overflow-hidden">
+  <!-- Table ring decoration -->
+  <div class="absolute inset-3 sm:inset-6 border-2 border-dashed border-emerald-600/30 rounded-[3rem] pointer-events-none"></div>
+
+  <!-- NORTH - Partner AI -->
+  <div class="absolute top-1 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center w-64">
+    <div class="mb-1 flex items-center gap-1.5 bg-black/50 backdrop-blur px-2 py-0.5 rounded-full text-[10px]">
+      <span class="w-2 h-2 rounded-full bg-blue-400 inline-block"></span>
+      <span class="text-blue-300 font-bold">North (Partner)</span>
+      <span id="bid-north-badge" class="ml-1 px-1 rounded bg-slate-800 text-amber-400 hidden">Bid:-</span>
+      <span id="tricks-north-badge" class="px-1 rounded bg-slate-800 text-emerald-400">Won:0</span>
+    </div>
+    <div id="hand-north" class="flex -space-x-8 scale-75 origin-top"></div>
+  </div>
+
+  <!-- WEST - Opponent AI -->
+  <div class="absolute left-1 top-1/2 -translate-y-1/2 z-10 flex items-center h-64 md:left-3">
+    <div class="mr-2 flex flex-col items-end gap-0.5 bg-black/50 backdrop-blur px-2 py-1 rounded-lg text-[10px]">
+      <span class="text-red-300 font-bold block">West</span>
+      <span id="bid-west-badge" class="px-1 rounded bg-slate-800 text-amber-400 hidden">Bid:-</span>
+      <span id="tricks-west-badge" class="px-1 rounded bg-slate-800 text-emerald-400">Won:0</span>
+    </div>
+    <div id="hand-west" class="flex flex-col -space-y-10 scale-75 origin-left max-h-48"></div>
+  </div>
+
+  <!-- EAST - Opponent AI -->
+  <div class="absolute right-1 top-1/2 -translate-y-1/2 z-10 flex flex-row-reverse items-center h-64 md:right-3">
+    <div class="ml-2 flex flex-col items-start gap-0.5 bg-black/50 backdrop-blur px-2 py-1 rounded-lg text-[10px]">
+      <span class="text-red-300 font-bold block">East</span>
+      <span id="bid-east-badge" class="px-1 rounded bg-slate-800 text-amber-400 hidden">Bid:-</span>
+      <span id="tricks-east-badge" class="px-1 rounded bg-slate-800 text-emerald-400">Won:0</span>
+    </div>
+    <div id="hand-east" class="flex flex-col -space-y-10 scale-75 origin-right max-h-48"></div>
+  </div>
+
+  <!-- CENTER TRICK AREA -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
+    <div class="relative w-48 h-48 sm:w-56 sm:h-56">
+      <!-- Played card positions (kept inside center box, clear of the side players) -->
+      <div id="play-north" class="absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-300"></div>
+      <div id="play-south" class="absolute -bottom-3 left-1/2 -translate-x-1/2 transition-all duration-300"></div>
+      <div id="play-west" class="absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300"></div>
+      <div id="play-east" class="absolute right-0 top-1/2 -translate-y-1/2 transition-all duration-300"></div>
+
+      <!-- Center info bubble -->
+      <div id="center-bubble" class="absolute inset-0 m-auto w-36 h-16 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 text-center pointer-events-none">
+        <p id="center-text" class="text-xs text-slate-300 leading-tight">Dealing cards...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SOUTH - Human Player Hand -->
+  <div class="absolute bottom-0 left-0 right-0 z-10 flex flex-col items-center pb-2 pt-16">
+    <div class="mb-1.5 flex items-center gap-1.5 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs shadow-lg">
+      <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block animate-pulse"></span>
+      <span id="south-name" class="font-bold text-green-300">South (You)</span>
+      <span id="bid-south-badge" class="ml-1 px-1.5 py-0.5 rounded bg-slate-800 text-amber-400 hidden">Bid:-</span>
+      <span id="tricks-south-badge" class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-400">Won:0</span>
+    </div>
+    <div id="hand-south" class="flex -space-x-3 sm:-space-x-5 overflow-visible justify-center min-h-[90px] items-end px-4"></div>
+  </div>
+</main>
+
+<!-- GAME LOG: detached floating window, closed by default so it never blocks the cards -->
+<div id="log-window" class="hidden fixed bottom-14 right-3 z-40 w-72 h-72 max-h-72 flex flex-col rounded-xl border border-slate-600 bg-slate-900/95 backdrop-blur shadow-2xl overflow-hidden">
+  <div class="flex items-center justify-between px-2 py-1.5 bg-slate-800/80 border-b border-slate-600 cursor-move select-none">
+    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400">📋 Game Log</span>
+    <button onclick="toggleLogWindow()" class="text-slate-400 hover:text-slate-200 text-sm leading-none px-1">✕</button>
+  </div>
+  <div id="game-log" class="flex-1 overflow-y-auto log-scroll space-y-0.5 text-[11px] font-mono text-slate-300 p-2"></div>
+  <button onclick="clearLog()" class="shrink-0 px-2 py-1 text-[10px] text-slate-500 hover:text-slate-300 border-t border-slate-700 bg-slate-800/50">Clear Log</button>
+</div>
+<button id="toggle-log-btn" onclick="toggleLogWindow()" title="Game Log" class="fixed bottom-3 right-3 z-40 bg-slate-800 hover:bg-slate-700 text-slate-300 w-10 h-10 rounded-full flex items-center justify-center shadow-lg border border-slate-600 text-base">📋</button>
+
+<!-- BIDDING MODAL OVERLAY -->
+<div id="bidding-modal" class="hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-2 pointer-events-none">
+  <div id="bid-hook" class="pointer-events-auto w-full max-w-md bg-slate-900 border border-emerald-600 rounded-2xl p-4 shadow-2xl round-modal-enter">
+    <h2 class="text-xl font-black text-emerald-400 text-center mb-1">◆ Lo-Lifes Spades ◆</h2>
+    <!-- Player name entry (shown on the first bid so the player sets their name) -->
+    <div id="name-entry" class="mb-2 flex gap-2 items-center">
+      <label class="text-[11px] text-slate-300 font-bold whitespace-nowrap">Your name:</label>
+      <input id="player-name-input" type="text" maxlength="16" placeholder="Enter your name"
+             class="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-emerald-500"/>
+      <button onclick="setPlayerName()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded">OK</button>
+    </div>
+    <h3 id="bid-heading" class="text-lg font-black text-emerald-400 text-center mb-1.5">Make Your Bid</h3>
+    <!-- Partner / team info -->
+    <div class="text-xs text-center mb-2 space-x-2">
+      <span class="text-blue-300 bg-slate-800/50 px-2 py-0.5 rounded">Partner (North) bid: <b id="partner-bid-info">?</b></span>
+      <span class="text-slate-400 bg-slate-800/50 px-2 py-0.5 rounded">Team target: <b id="team-target-info">0</b></span>
+    </div>
+    <!-- Mini face-up hand so the player can count tricks while bidding -->
+    <div class="mb-2">
+      <div class="text-[10px] uppercase tracking-widest text-slate-500 mb-1">Your Hand (face-up):</div>
+      <div id="bid-hand-preview" class="flex flex-wrap gap-0.5 justify-center max-h-24 overflow-y-auto"></div>
+    </div>
+    <p class="text-[11px] text-slate-400 text-center mb-2">How many books will <b>you</b> take? (0–13)</p>
+    <button onclick="humanBid(0)" class="w-full mb-2 bg-purple-900/60 hover:bg-purple-700 border border-purple-500 text-purple-200 font-bold py-2 rounded transition text-sm">Nil — 0 Books (+100 if made, −100 if failed)</button>
+    <div id="bid-grid" class="grid grid-cols-5 gap-1.5"></div>
+  </div>
+</div>
+
+<!-- ROUND SUMMARY MODAL -->
+<div id="round-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-slate-900 border border-slate-600 rounded-2xl p-6 max-w-lg w-full shadow-2xl round-modal-enter">
+    <h2 id="modal-title" class="text-2xl font-black text-white text-center mb-4">Round Complete</h2>
+    <div id="modal-body" class="space-y-3 text-sm"></div>
+    <button id="modal-action" onclick="" class="w-full mt-4 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl transition">Next Round</button>
+  </div>
+</div>
+
+<script>
+/* ===== CONSTANTS & STATE ===== */
+const SUITS = ['Clubs','Diamonds','Hearts','Spades'];
+const RANKS = [2,3,4,5,6,7,8,9,10,11,12,13,14]; // A=14
+const LABELS = {2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'10',11:'J',12:'Q',13:'K',14:'A'};
+const SYMBOLS = {Clubs:'♣',Diamonds:'♦',Hearts:'♥',Spades:'♠',Joker:'★'};
+const COLORS  = {Clubs:'suit-clubs',Diamonds:'suit-diamonds',Hearts:'suit-hearts',Spades:'suit-spades',Joker:'suit-joker'};
+const PLAYERS = ['south','west','north','east']; // clockwise
+const NAMES   = {south:'You (South)',west:'West',north:'North (Partner)',east:'East'};
+// STREET RULES (Joker-Joker-Deuce-Deuce): Big Joker > Little Joker > 2D > 2S as top trumps
+const TRUMP_POWER = { 'BJ':100, 'LJ':99, '2D':98, '2S':97 }; // hand-assigned on card
+// Team US = south+north, Team THEM = west+east
+
+/* ===== AUDIO (Web Audio API — no external files) ===== */
+let AC=null, soundOn=true, audioMaster=null;
+function ac(){ if(!AC){ try{ AC=new (window.AudioContext||window.webkitAudioContext)(); audioMaster=AC.createGain(); audioMaster.gain.value=0.35; audioMaster.connect(AC.destination);}catch(e){ return null; } } if(AC.state==='suspended') AC.resume(); return AC; }
+function tone(freq,dur,type,vol,delay){
+  const ctx=ac(); if(!ctx||!soundOn) return;
+  const t=(ctx.currentTime)+(delay||0);
+  const o=ctx.createOscillator(); o.type=type||'square';
+  o.frequency.setValueAtTime(freq,t);
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(vol||0.3,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  o.connect(g); g.connect(audioMaster||ctx.destination);
+  o.start(t); o.stop(t+dur+0.02);
+}
+const SND={
+  deal:      ()=>{ for(let i=0;i<3;i++) tone(220+ i*60,0.08,'triangle',0.2,i*0.04); },
+  play:      ()=>{ tone(520,0.09,'square',0.28); tone(700,0.06,'triangle',0.15,0.02); },
+  yourTurn:  ()=>{ tone(880,0.12,'square',0.35); tone(1170,0.18,'square',0.3,0.12); },
+  cpuPlay:   ()=>{ tone(400,0.07,'triangle',0.18); },
+  win:       ()=>{ tone(660,0.10,'sine',0.3); tone(880,0.10,'sine',0.3,0.08); tone(1100,0.16,'sine',0.3,0.16); },
+  lose:      ()=>{ tone(300,0.14,'sawtooth',0.2); tone(220,0.18,'sawtooth',0.2,0.1); },
+  bag:       ()=>{ tone(150,0.2,'sawtooth',0.25,0); tone(120,0.25,'sawtooth',0.2,0.1); },
+  bid:       ()=>{ tone(500,0.08,'triangle',0.2,0); tone(650,0.08,'triangle',0.2,0.06); }
+};
+window.toggleSound=function(){ soundOn=!soundOn; if(soundOn) SND.bid(); return soundOn; };
+/* Browsers block audio until a user gesture — unlock on first interaction */
+function unlockAudio(){ ac(); window.removeEventListener('click',unlockAudio); window.removeEventListener('keydown',unlockAudio); }
+window.addEventListener('click', unlockAudio);
+window.addEventListener('keydown', unlockAudio);
+
+let S = {};
+
+/* Player's chosen name (defaults to South until they set one on the first bid) */
+let playerName = 'South';
+let nameSet = false;
+
+function setPlayerName(){
+  const inp=document.getElementById('player-name-input');
+  const val=(inp.value||'').trim();
+  if(val){ playerName=val; }
+  nameSet=true;
+  const ne=document.getElementById('name-entry');
+  if(ne){ ne.style.display='none'; ne.classList.add('hidden'); }
+  // Use the name in the game UI + messages
+  document.getElementById('south-name').textContent=(playerName==='South'?'South (You)':playerName+' (You)');
+  const bh=document.getElementById('bid-heading');
+  if(bh) bh.textContent=(playerName==='South'?'Make Your Bid':`Make Your Bid, ${playerName}`);
+  NAMES.south = (playerName==='South'?'You (South)':playerName);
+}
+/* Enter key in the name field also sets it (script runs at end of body) */
+(function initNameEntry(){
+  const inp=document.getElementById('player-name-input');
+  if(!inp) return;
+  inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); setPlayerName(); } });
+})();
+
+function initState() {
+  S = {
+    scores:{us:0,them:0}, bags:{us:0,them:0},
+    hands:{south:[],west:[],north:[],east:[]},
+    bids:{south:null,west:null,north:null,east:null},
+    nilBids:{south:false,west:false,north:false,east:false},
+    tricksWon:{south:0,west:0,north:0,east:0},
+    dealerIdx:0, turnIdx:0, leadSuit:null, spadesBroken:false,
+    phase:'DEALING', trickCards:[], currentTrickNum:0, round:1,
+    kitty:[], gameOver:false
+  };
+}
+/* Per-round reset: keeps cumulative scores & bags (so game runs to 500),
+   resets only the per-hand data. */
+function resetRoundState() {
+  S.hands={south:[],west:[],north:[],east:[]};
+  S.bids={south:null,west:null,north:null,east:null};
+  S.nilBids={south:false,west:false,north:false,east:false};
+  S.tricksWon={south:0,west:0,north:0,east:0};
+  S.turnIdx=0; S.leadSuit=null; S.spadesBroken=false;
+  S.phase='DEALING'; S.trickCards=[]; S.currentTrickNum=0;
+  S.kitty=[];
+}
+
+/* ===== DECK HELPERS ===== */
+function makeDeck(){
+  let d=[];
+  for(let s of SUITS) for(let r of RANKS){
+    const key = (s==='Diamonds'&&r===2)?'2D' : (s==='Spades'&&r===2)?'2S' : null;
+    d.push({suit:s,rank:r,label:LABELS[r],symbol:SYMBOLS[s],colorClass:COLORS[s],
+            trumpPower: key?TRUMP_POWER[key]:null, isDeuce:key!==null});
+  }
+  // Add the two Jokers (street top cards)
+  d.push({suit:'Joker',rank:16,label:'BJ',symbol:'★',colorClass:'suit-joker',trumpPower:100,isJoker:'big',isDeuce:false});
+  d.push({suit:'Joker',rank:15,label:'LJ',symbol:'★',colorClass:'suit-joker',trumpPower:99,isJoker:'little',isDeuce:false});
+  return d; // 54 cards
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function sortHand(hand){
+  // Sort: trump-power cards first (BJ,LJ,2D,2S), then by suit then rank
+  const so={Clubs:0,Diamonds:1,Hearts:2,Spades:3,Joker:4};
+  hand.sort((a,b)=>{
+    const ap=a.trumpPower||0, bp=b.trumpPower||0;
+    if(ap||bp) return bp-ap;                 // top trumps first
+    return so[a.suit]-so[b.suit]||a.rank-b.rank;
+  });
+}
+
+function cardId(c){return c.label+'_'+c.suit;}
+
+/* ===== LOGGING ===== */
+function log(msg,type=''){
+  const el=document.getElementById('game-log');
+  if(!el)return;
+  const icons={bid:'🎯',trick:'🏆',broken:'⚡',round:'📊',score:'💰',nil:'🌙',play:'▶️'};
+  const icon=icons[type]||'•';
+  const div=document.createElement('div');
+  div.className='py-px border-b border-slate-800/50 leading-relaxed whitespace-pre-wrap break-words';
+  div.innerHTML=`<span class="opacity-50">${icon}</span> <span>${msg}</span>`;
+  el.appendChild(div);
+  el.scrollTop=el.scrollHeight;
+}
+window.clearLog=function(){document.getElementById('game-log').innerHTML='';};
+
+/* Detached log window: toggle + drag to move it wherever you want */
+window.toggleLogWindow=function(){
+  const w=document.getElementById('log-window');
+  w.classList.toggle('hidden');
+};
+(function initLogDrag(){
+  const win=document.getElementById('log-window');
+  const bar=win.querySelector('.cursor-move');
+  let sx=0,sy=0,ox=0,oy=0,drag=false;
+  bar.addEventListener('mousedown',e=>{
+    drag=true; sx=e.clientX; sy=e.clientY;
+    const r=win.getBoundingClientRect(); ox=r.left; oy=r.top;
+    bar.style.cursor='grabbing'; e.preventDefault();
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!drag) return;
+    const x=ox+(e.clientX-sx), y=oy+(e.clientY-sy);
+    win.style.left=Math.max(0,Math.min(x,window.innerWidth-win.offsetWidth))+'px';
+    win.style.top=Math.max(0,Math.min(y,window.innerHeight-win.offsetHeight))+'px';
+    win.style.right='auto'; win.style.bottom='auto';
+  });
+  window.addEventListener('mouseup',()=>{ drag=false; bar.style.cursor='move'; });
+})();
+
+/* ===== TEAM HELPERS ===== */
+function teamOf(p){return (p==='south'||p==='north')?'us':'them';}
+function partnerOf(p){return p==='south'?'north':p==='north'?'south':p==='west'?'east':'west';}
+
+/* ===== UI HELPER ===== */
+function setCenter(txt,cls){
+  const el=document.getElementById('center-text');
+  el.textContent=txt;
+}
+function $id(i){return document.getElementById(i);}
+
+function updateScoreTargets(){
+  const usBid=(S.bids.south||0)+(S.bids.north||0);
+  const themBid=(S.bids.west||0)+(S.bids.east||0);
+  $id('us-target-display').textContent=usBid;
+  $id('them-target-display').textContent=themBid;
+  $id('us-tricks-display').textContent=S.tricksWon.south+S.tricksWon.north;
+  $id('them-tricks-display').textContent=S.tricksWon.west+S.tricksWon.east;
+  $id('score-us').textContent=S.scores.us;
+  $id('score-them').textContent=S.scores.them;
+  $id('bags-us').textContent=S.bags.us;
+  $id('bags-them').textContent=S.bags.them;
+  $id('round-badge').textContent='Round '+S.round;
+  $id('phase-label').textContent=S.phase==='BIDDING'?'Bidding...':S.phase==='PLAYING'?`Book ${S.currentTrickNum}/13`:'Dealing...';
+}
+
+/* ===== RENDER: HANDS ===== */
+function faceEl(card,small){
+  let col=card.suit==='Hearts'||card.suit==='Diamonds'?'#dc2626':'#1e293b';
+  let label=card.label, sym=card.symbol, titleNote=card.label+SYMBOLS[card.suit];
+  if(card.isJoker){
+    col = (card.isJoker==='big') ? '#dc2626' : '#1e293b';
+    label = (card.isJoker==='big'?'BJ':'LJ');
+    sym = '★';
+    titleNote = label+' JOKER (top trump)';
+  } else if(card.isDeuce){
+    // STREET RULES: the 2D (3rd highest) and 2S (4th highest) are TOP TRUMPS.
+    // They keep their real suit (2D is a diamond, 2S is a spade — only one spade in the deck),
+    // shown with a ★ marker so they read as power cards. Both out-rank every regular spade.
+    col = (card.suit==='Diamonds') ? '#dc2626' : '#1e293b'; // 2D red diamond, 2S black spade
+    sym = card.symbol + '★';  // put the trump star right on the face
+    const pos = (card.suit==='Diamonds') ? '3rd highest card in the game' : '4th highest card in the game';
+    titleNote = '2'+SYMBOLS[card.suit]+' ★ TOP TRUMP ('+pos+')';
+  }
+  const div=document.createElement('div');
+  div.className=small?'trick-card':'card-face ';
+  div.style.color=col;
+  div.title=titleNote;
+  div.innerHTML=`<span class="font-bold" style="color:${col}">${label}</span><span class="text-center text-base" style="color:${col}">${sym}</span><span class="font-bold self-end" style="color:${col}">${label}</span>`;
+  return div;
+}
+function backEl(){
+  const div=document.createElement('div');
+  div.className='card-back-img'; // styled in CSS, uses the JPG
+  const img=document.createElement('img');
+  img.src='card_back.jpg';
+  img.alt='card back';
+  img.draggable=false;
+  img.style.cssText='width:100%;height:100%;object-fit:cover;border-radius:6px;display:block;pointer-events:none;user-select:none;';
+  div.appendChild(img);
+  return div;
+}
+
+function renderAllHands(deal){
+  const stagger = deal ? 0.028 : 0; // ms-per-card stagger for the deal animation
+  const n = S.hands.north.length;
+  // North (top): card backs
+  const hn=$id('hand-north'); hn.innerHTML='';
+  S.hands.north.forEach((c,i)=>{ const b=backEl(); if(deal){b.style.animation=`flyDeal .35s ease-out backwards`;b.style.animationDelay=(i*stagger)+'s';} hn.appendChild(b); });
+  $id('tricks-north-badge').textContent='Won:'+S.tricksWon.north;
+  // West (left)
+  const hw=$id('hand-west'); hw.innerHTML='';
+  S.hands.west.forEach((c,i)=>{ const b=backEl(); if(deal){b.style.animation=`flyDeal .35s ease-out backwards`;b.style.animationDelay=(i*stagger)+'s';} hw.appendChild(b); });
+  $id('tricks-west-badge').textContent='Won:'+S.tricksWon.west;
+  // East (right)
+  const he=$id('hand-east'); he.innerHTML='';
+  S.hands.east.forEach((c,i)=>{ const b=backEl(); if(deal){b.style.animation=`flyDeal .35s ease-out backwards`;b.style.animationDelay=(i*stagger)+'s';} he.appendChild(b); });
+  $id('tricks-east-badge').textContent='Won:'+S.tricksWon.east;
+  // South (player) - face up, rendered by renderSouthHand()
+  renderSouthHand(deal);
+}
+
+function renderSouthHand(deal){
+  const hs=$id('hand-south'); hs.innerHTML='';
+  S.hands.south.forEach((c,i)=>{
+    const el=faceEl(c);
+    el.classList.add('dimmed'); // default: non-interactive
+    if(deal){ el.style.animation=`flyDeal .35s ease-out backwards`; el.style.animationDelay=(i*0.028)+'s'; }
+    el.onclick=()=>onCardClick(cardId(c));
+    hs.appendChild(el);
+  });
+  $id('tricks-south-badge').textContent='Won:'+S.tricksWon.south;
+}
+function renderSouthHandInteractive(){
+  const hs=$id('hand-south');
+  hs.querySelectorAll('.card-face').forEach(el=>el.classList.remove('dimmed'));
+}
+function dimSouthHand(){
+  const hs=$id('hand-south');
+  hs.querySelectorAll('.card-face').forEach(el=>el.classList.add('dimmed'));
+}
+
+/* Render the card played to the table */
+function renderPlayedCardOnTable(player,card){
+  const slot=$id('play-'+player);
+  slot.innerHTML='';
+  const el=faceEl(card,true);
+  el.classList.add('play-snap'); // snap-in animation when a card lands on the table
+  slot.appendChild(el);
+}
+
+function clearTable(){
+  ['play-north','play-south','play-west','play-east'].forEach(id=>{$id(id).innerHTML='';});
+}
+
+/* ===== SCORING ENGINE (Wikipedia-standard Spades rules) ===== */
+function calculateRoundScores(){
+  const usBid=S.bids.south+S.bids.north;
+  const themBid=S.bids.west+S.bids.east;
+  const usWon=S.tricksWon.south+S.tricksWon.north;
+  const themWon=S.tricksWon.west+S.tricksWon.east;
+
+  let usPts=0, themPts=0;
+  let usBagsGained=0, themBagsGained=0;
+
+  const nilBonus=(p)=>{
+    if(!S.nilBids[p]) return 0;
+    if(S.tricksWon[p]===0){ log(`${NAMES[p]} made their NIL! (+100)`,'nil'); return 100; }
+    else { log(`${NAMES[p]} failed their NIL (-100)`,'nil'); return -100; }
+  };
+
+  function processTeam(bidP1,bidP2,wonP1,wonP2,nilP1,nilP2){
+    let pts=0;
+    let nonNilBid=0,nonNilWon=0;
+    if(!nilP1){nonNilBid+=bidP1;nonNilWon+=wonP1;}
+    if(!nilP2){nonNilBid+=bidP2;nonNilWon+=wonP2;}
+    if(nonNilBid>0){
+      if(nonNilWon>=nonNilBid){
+        pts+=nonNilBid*10+(nonNilWon-nonNilBid);
+        return {pts,bags:(nonNilWon-nonNilBid)};
+      } else {
+        pts-=nonNilBid*10;
+        return {pts,bags:0};
+      }
+    }
+    return {pts,bags:0};
+  }
+
+  const rUs = processTeam(S.bids.south,S.bids.north,S.tricksWon.south,S.tricksWon.north,S.nilBids.south,S.nilBids.north);
+  const rThem = processTeam(S.bids.west,S.bids.east,S.tricksWon.west,S.tricksWon.east,S.nilBids.west,S.nilBids.east);
+
+  usPts=rUs.pts; themPts=rThem.pts;
+  // Add proper nil bonuses (handled separately from contract)
+  usPts+=nilBonus('south')+nilBonus('north');
+  themPts+=nilBonus('west')+nilBonus('east');
+  usBagsGained=rUs.bags; themBagsGained=rThem.bags;
+
+  S.bags.us+=usBagsGained; S.bags.them+=themBagsGained;
+  if(S.bags.us>=10){ usPts-=100; S.bags.us%=10; SND.bag(); log('🎒 US bag penalty! (-100)','score'); }
+  if(S.bags.them>=10){ themPts-=100; S.bags.them%=10; SND.bag(); log('🎒 THEM bag penalty! (-100)','score'); }
+
+  S.scores.us+=usPts; S.scores.them+=themPts;
+
+  return {usPts,themPts,rUs,rThem,usWon,themWon,usBid,themBid};
+}
+
+/* ===== CPU AI ENGINE ===== */
+function aiCalculateBid(hand){
+  let est=0;
+  const bySuit={Clubs:[],Diamonds:[],Hearts:[],Spades:[],Joker:[]};
+  hand.forEach(c=>bySuit[c.suit].push(c));
+  // Street: top-trumps (jokers + 2D + 2S) are near-certain tricks
+  const tt=hand.filter(c=>c.trumpPower!=null);
+  tt.forEach(c=>{ est += (c.trumpPower>=98)?1.5 : 1.2; }); // BJ/LJ/2D solid, 2S ~1.2
+  ['Clubs','Diamonds','Hearts'].forEach(s=>{
+    const cs=bySuit[s];
+    if(cs.some(c=>c.rank===14)) est+=1;
+    if(cs.length>=3 && cs.some(c=>c.rank===13)) est+=0.6;
+    if(cs.length>=5 && cs.some(c=>c.rank===12)) est+=0.3;
+  });
+  const sp=bySuit['Spades'];
+  sp.forEach(c=>{
+    if(c.trumpPower!=null) return; // count deuce separately (done above)
+    if(c.rank===14) est+=1.2;
+    else if(c.rank>=12) est+=0.8;
+    else if(c.rank>=10) est+=0.4;
+  });
+  if(sp.length>=4) est+=(sp.length-3)*0.5;
+  ['Clubs','Diamonds','Hearts'].forEach(s=>{
+    if(bySuit[s].length===0 && sp.length>=2) est+=0.5;
+    else if(bySuit[s].length<=1 && sp.length>=3) est+=0.2;
+  });
+  let bid=Math.round(est);
+  bid=Math.max(0,Math.min(bid,12));
+  if(bid<=1 && !hand.some(c=>c.rank>=12) && sp.length<=2 && Math.random()<0.3) return 0;
+  return bid;
+}
+
+/* STREET RULES TRUMP IDENTITY:
+   The trump set = all spades + both jokers + the 2D + 2S (the "Joker-Joker-Deuce-Deuce").
+   The 2D physically says diamond, but it PLAYS as a spade/trump:
+   - counts as having/being a trump,
+   - cannot be LED while spades are sealed,
+   - leading it BREAKS spades,
+   - it never forces a diamond follow and never establishes a diamond trick. */
+function isTrumpCard(card){ return (card.suit==='Spades') || (card.trumpPower!=null); }
+
+function isValidCard(card, hand){
+  if(S.trickCards.length===0){
+    // LEADING: can't lead a trump (spade, joker, 2D, 2S) while spades are sealed,
+    // unless you have nothing but trumps/spades left.
+    if(isTrumpCard(card)){
+      if(!S.spadesBroken){
+        const hasOther = hand.some(c => !isTrumpCard(c));
+        if(hasOther) return false;   // sealed → cannot lead any trump
+      }
+    }
+    return true;
+  }
+  // FOLLOWING
+  const leadCard = S.trickCards[0].card;
+  const ledIsTrump = isTrumpCard(leadCard) ? true : false; // spade/joker/deuce lead = trump lead
+  if(ledIsTrump){
+    // Trump was led → you're void in the lead suit; you may play ANY card (any trump or off-suit).
+    // You are NOT forced to follow a deuce with a diamond — this is a spade/trump trick.
+    return true;
+  }
+  // Lead is a PLAIN off-suit (club/diamond/heart, excluding the trump 2D).
+  // A plain card of the led suit counts as "having" it — a deuce/joker does NOT count (it's a trump).
+  const led = leadCard.suit;
+  const hasLed = hand.some(c => (c.suit===led) && !isTrumpCard(c) );
+  if(hasLed){
+    // Must follow with a plain card of the led suit — trumps (including 2D/2S) cannot be dumped here.
+    if(isTrumpCard(card)) return false;
+    return card.suit===led;
+  }
+  return true; // void in the plain led suit → any card (including a trump) is playable
+}
+
+/* Street rule: is this card one of the top-4 trumps (BJ/LJ/2D/2S)? */
+function isTopTrump(card){ return !!card.trumpPower; }
+
+/* Unified comparison value for trick-winning under street rules.
+   Returns a high number for better cards. */
+function cardWinValue(card, leadSuit){
+  // Top-4 trump-power cards are the absolute highest, ordered by trumpPower
+  if(card.trumpPower!=null){
+    // 100(BJ) .. 97(2S) — add a huge base so they beat every normal card
+    return 1000 + card.trumpPower;
+  }
+  // Spades are trump (normal). Lead-suit cards follow their rank.
+  const isTrump = (card.suit==='Spades');
+  const base = isTrump ? 500 : 0;              // any spade beats any off-suit
+  return base + card.rank;                     // within same class, higher rank wins
+}
+
+function currentTrickWinner(){
+  if(S.trickCards.length===0) return null;
+  const leadSuit=S.trickCards[0].card.suit;
+  let best=S.trickCards[0];
+  let bestVal=cardWinValue(best.card, leadSuit);
+  for(let i=1;i<S.trickCards.length;i++){
+    const c=S.trickCards[i];
+    const v=cardWinValue(c.card, leadSuit);
+    if(v>bestVal){ best=c; bestVal=v; }
+  }
+  return best.player;
+}
+
+function partnerWinning(playerKey){
+  const winner=currentTrickWinner();
+  if(winner===null) return false;
+  return teamOf(winner)===teamOf(playerKey);
+}
+
+function aiChooseCard(pkey){
+  const hand=S.hands[pkey];
+  const valid=hand.filter(c=>isValidCard(c,hand));
+  if(valid.length===1) return valid[0];
+  if(S.trickCards.length===0){
+    const nonSpades=valid.filter(c=>c.suit!=='Spades');
+    if(nonSpades.length>0){
+      const suits={};nonSpades.forEach(c=>{if(!suits[c.suit])suits[c.suit]=[];suits[c.suit].push(c)});
+      let bestSuit=null,bestLen=0;
+      for(let s in suits) if(suits[s].length>bestLen){bestLen=suits[s].length;bestSuit=s;}
+      return suits[bestSuit].sort((a,b)=>a.rank-b.rank)[0];
+    }
+    return [...valid].sort((a,b)=>a.rank-b.rank)[0];
+  }
+  const ledSuit=S.trickCards[0].card.suit;
+  const leadIsTrump = isTrumpCard(S.trickCards[0].card); // deuce/joker/spade lead = trump lead
+  // Only plain (non-deuce, non-joker) cards can "follow" a PLAIN led suit — top-deuces/jokers are trumps
+  const following = (!leadIsTrump && ledSuit!=='Spades')
+    ? valid.filter(c=>c.suit===ledSuit && !isTrumpCard(c))
+    : [];
+  if(following.length>0){
+    if(partnerWinning(pkey)){
+      // Partner winning — discard low, save any trump/deuce for later
+      return [...following].sort((a,b)=>a.rank-b.rank)[0];
+    } else {
+      const curW=currentTrickWinner();
+      const curBestPlay=S.trickCards.find(t=>t.player===curW);
+      if(curBestPlay&&curBestPlay.card.suit!=='Spades'&&curBestPlay.card.trumpPower==null&&curBestPlay.card.suit===ledSuit){
+        const beaters=following.filter(c=>c.rank>curBestPlay.card.rank);
+        if(beaters.length>0) return [...beaters].sort((a,b)=>a.rank-b.rank)[0];
+      }
+      return [...following].sort((a,b)=>a.rank-b.rank)[0];
+    }
+  }
+  if(partnerWinning(pkey)){
+    // Partner winning — discard the SAFEST card: prefer off-suit plain cards,
+    // then a low plain card, and ONLY if nothing else, the cheapest trump (never a strong top-trump)
+    const safeOff=valid.filter(c=>c.suit!==ledSuit && c.suit!=='Spades' && c.trumpPower==null);
+    if(safeOff.length>0) return [...safeOff].sort((a,b)=>a.rank-b.rank)[0];
+    const anyPlain=valid.filter(c=>c.trumpPower==null);
+    if(anyPlain.length>0) return [...anyPlain].sort((a,b)=>a.rank-b.rank)[0];
+    // Forced to trump over partner — use the cheapest (never the deuce/joker if avoidable)
+    return [...valid].sort((a,b)=>cardWinValue(a)-cardWinValue(b))[0];
+  }
+  // VOID + partner losing → try to win with trump (spades OR joker/deuce)
+  const trumps=valid.filter(c=>(c.suit==='Spades') || c.trumpPower!=null);
+  if(trumps.length>0){
+    const trumpPlays=S.trickCards.filter(t=>t.card.suit==='Spades'||t.card.trumpPower!=null);
+    if(trumpPlays.length>0){
+      // highest trump value already on table
+      const maxVal=Math.max(...trumpPlays.map(t=>cardWinValue(t.card)));
+      const canBeat=trumps.filter(c=>cardWinValue(c)>maxVal);
+      if(canBeat.length>0){
+        // choose the cheapest winning trump (lowest win value)
+        return [...canBeat].sort((a,b)=>cardWinValue(a)-cardWinValue(b))[0];
+      }
+      const other=valid.filter(c=>c.suit!=='Spades'&&c.trumpPower==null);
+      return other.length>0?[...other].sort((a,b)=>a.rank-b.rank)[0]:[...trumps].sort((a,b)=>a.rank-b.rank)[0];
+    }
+    // no trump on table → ruff with the cheapest trump
+    return [...trumps].sort((a,b)=>cardWinValue(a)-cardWinValue(b))[0];
+  }
+  return [...valid].sort((a,b)=>a.rank-b.rank)[0];
+}
+
+/* ===== GAME FLOW ===== */
+const delay=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function startRound(){
+  resetRoundState(); // keep running scores/bags so game goes to 500
+  // Spades reset every round: re-seal them and update the header badge
+  S.spadesBroken=false;
+  const ss=$id('spades-status');
+  if(ss){
+    ss.textContent='Spades sealed';
+    ss.className='text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400';
+  }
+  $id('round-modal').classList.add('hidden');
+  $id('modal-title').textContent='Round Complete';
+  clearLog();
+  resetBidBadges();
+  clearTable();
+
+  log(`--- Round ${S.round} begins (Dealer: ${NAMES[PLAYERS[S.dealerIdx]]})`,'round');
+
+  const deck=shuffle(makeDeck());
+  S.hands.south=deck.slice(0,13); sortHand(S.hands.south);
+  S.hands.west=deck.slice(13,26); sortHand(S.hands.west);
+  S.hands.north=deck.slice(26,39); sortHand(S.hands.north);
+  S.hands.east=deck.slice(39,52); sortHand(S.hands.east);
+  S.kitty=deck.slice(52,54); // 54-card street deck: 2 cards to the kitty (not played)
+
+  // Deal sound + visible deal-in animation (cards fan out across the table)
+  SND.deal();
+  renderAllHands(true); // pass deal=true to stagger fly-in
+  updateScoreTargets();
+
+  S.phase='BIDDING';
+  S.turnIdx=(S.dealerIdx+1)%4;
+  setCenter('Bidding...');
+  await delay(500);
+  await runBidCycle();
+
+  S.phase='PLAYING';
+  S.currentTrickNum=1;
+  S.turnIdx=(S.dealerIdx+1)%4;
+  log(`Play phase — ${NAMES[PLAYERS[S.turnIdx]]} leads Book #1.`,'trick');
+  setCenter(`Book #1 — ${NAMES[PLAYERS[S.turnIdx]]} leads`);
+  updateScoreTargets();
+  await delay(600);
+  processTurn();
+}
+
+function resetBidBadges(){
+  PLAYERS.forEach(p=>{
+    const b=$id('bid-'+p+'-badge');
+    b.classList.add('hidden');
+  });
+}
+
+async function runBidCycle(){
+  while(true){
+    const p=PLAYERS[S.turnIdx];
+    if(p==='south'){
+      showHumanBidModal();
+      await new Promise(resolve=>{window._bidResolve=resolve;});
+    } else {
+      setCenter(`${NAMES[p]} is thinking...`);
+      await delay(800);
+      const bid=aiCalculateBid(S.hands[p]);
+      recordBid(p,bid);
+      await delay(400);
+    }
+    S.turnIdx=(S.turnIdx+1)%4;
+    const allBid=PLAYERS.every(p=>S.bids[p]!==null);
+    if(allBid) break;
+  }
+}
+
+function recordBid(player,bid){
+  S.bids[player]=bid;
+  S.nilBids[player]=(bid===0);
+  SND.bid();
+  const badge=$id('bid-'+player+'-badge');
+  badge.textContent=(bid===0?'NIL':bid);
+  badge.classList.remove('hidden');
+  log(`${NAMES[player]} bids <b>${bid===0?'NIL':bid}</b>`,'bid');
+  updateScoreTargets();
+}
+
+function showHumanBidModal(){
+  const m=$id('bidding-modal');
+  // Only ask for the name on the first bid; hide it afterwards
+  const ne=$id('name-entry');
+  if(ne){ ne.style.display = (!nameSet) ? 'flex' : 'none'; }
+  const grid=$id('bid-grid');
+  const info=$id('partner-bid-info');
+  info.textContent=(S.bids.north!==null)?(S.bids.north===0?'NIL':S.bids.north):'...';
+  // Team target = partner's bid (yours comes next)
+  const teamTarget=((S.bids.north||0));
+  $id('team-target-info').textContent=teamTarget+(teamTarget?' (so far)':' (so far)');
+
+  // Fill mini face-up hand preview so player can count tricks while bidding
+  const pv=$id('bid-hand-preview');
+  pv.innerHTML='';
+  S.hands.south.forEach(c=>{
+    let col=c.suit==='Hearts'||c.suit==='Diamonds'?'#dc2626':'#1e293b';
+    let txt=c.label+c.symbol;
+    if(c.isJoker){
+      col = (c.isJoker==='big') ? '#dc2626' : '#1e293b';
+      txt = (c.isJoker==='big'?'BJ':'LJ')+'★';
+    } else if(c.isDeuce){
+      // True suits: 2D is a red diamond, 2S is the spade. Both marked ★ as top trumps.
+      col = (c.suit==='Diamonds') ? '#dc2626' : '#1e293b';
+      txt = '2'+(c.suit==='Diamonds'?'♦':'♠')+'★';
+    }
+    const el=document.createElement('div');
+    el.className='bg-white rounded px-1 py-0.5 font-bold text-xs shadow border border-slate-300';
+    el.style.color=col;
+    el.textContent=txt;
+    el.title=txt+' '+ (c.isJoker?'JOKER':c.isDeuce?'TOP TRUMP (2nd highest)':c.label+SYMBOLS[c.suit]);
+    pv.appendChild(el);
+  });
+
+  grid.innerHTML='';
+  for(let i=1;i<=13;i++){
+    const btn=document.createElement('button');
+    btn.className='bidding-btn bg-slate-700 hover:bg-emerald-600 text-white font-bold py-2 rounded transition text-sm border border-slate-600 hover:border-emerald-400';
+    btn.textContent=i;
+    btn.onclick=()=>humanBid(i);
+    grid.appendChild(btn);
+  }
+  m.classList.remove('hidden');
+}
+
+window.humanBid=function(n){
+  $id('bidding-modal').classList.add('hidden');
+  recordBid('south',n);
+  if(window._bidResolve) window._bidResolve();
+};
+
+async function processTurn(){
+  if(S.phase!=='PLAYING') return;
+  const p=PLAYERS[S.turnIdx];
+  if(p==='south'){
+    setCenter('Your turn — click a legal card');
+    renderSouthHandInteractive();
+    SND.yourTurn(); // "It's your turn" beep so you can look up when it's you
+    // Wait for human click
+  } else {
+    setCenter(`${NAMES[p]} plays...`);
+    dimSouthHand();
+    await delay(700);
+    const card=aiChooseCard(p);
+    playCardToTable(p,card);
+    await delay(300);
+    nextTurnOrEndTrick();
+  }
+}
+
+window.onCardClick=function(cardIdStr){
+  if(S.phase!=='PLAYING') return;
+  const hand=S.hands.south;
+  const card=hand.find(c=>cardId(c)===cardIdStr);
+  if(!card || !isValidCard(card,hand)) return;
+  playCardToTable('south',card);
+  nextTurnOrEndTrick();
+};
+
+function playCardToTable(player,card){
+  const idx=S.hands[player].findIndex(c=>c.label===card.label&&c.suit===card.suit);
+  if(idx>=0) S.hands[player].splice(idx,1);
+  // Street rules: playing a spade OR a top-trump (joker/2D/2S) breaks spades
+  if((card.suit==='Spades' || card.trumpPower!=null) && !S.spadesBroken){
+    S.spadesBroken=true;
+    log(`⚡ Spades broken by ${NAMES[player]}'s ${card.isJoker?card.isJoker+' joker':card.label+SYMBOLS[card.suit]}`,'broken');
+    $id('spades-status').textContent='♠ Spades broken!';
+    $id('spades-status').className='text-[10px] bg-amber-950/80 px-2 py-0.5 rounded-full text-amber-300 font-semibold';
+  }
+  S.trickCards.push({player,card});
+  // Card-play sound (distinct for human click vs CPU)
+  (player==='south')?SND.play():SND.cpuPlay();
+  log(`${NAMES[player]} plays ${card.label}${SYMBOLS[card.suit]}`,'play');
+  renderPlayedCardOnTable(player,card);
+  renderAllHands();
+  updateScoreTargets();
+}
+
+function nextTurnOrEndTrick(){
+  if(S.trickCards.length<4){
+    S.turnIdx=(S.turnIdx+1)%4;
+    setTimeout(()=>processTurn(),300);
+  } else {
+    setTimeout(()=>resolveTrick(),800);
+  }
+}
+
+async function resolveTrick(){
+  const winner=currentTrickWinner();
+  const winningCard=S.trickCards.find(t=>t.player===winner).card;
+  S.tricksWon[winner]++;
+  log(`🏆 ${NAMES[winner]} wins Book ${S.currentTrickNum} with ${winningCard.label}${SYMBOLS[winningCard.suit]}`,'trick');
+
+  // Win sound + collect animation: highlight winner, cards fly toward them
+  SND.win();
+  setCenter(`${NAMES[winner]} wins the book`);
+  // Pop the winning card + pull the whole trick in toward the winner
+  const winEl=$id('play-'+winner);
+  if(winEl&&winEl.firstChild) winEl.firstChild.classList.add('win-pop');
+  PLAYERS.forEach(p=>{
+    const el=$id('play-'+p).firstChild;
+    if(el && p!==winner) el.classList.add('collect-away'); // losers fade/slip toward winner
+  });
+  await delay(1050);
+
+  clearTable();
+  S.trickCards=[];
+
+  // Update trick counts
+  PLAYERS.forEach(p=>{ $id('tricks-'+p+'-badge').textContent='Won:'+S.tricksWon[p]; });
+  updateScoreTargets();
+
+  const totalTricksWon=S.tricksWon.south+S.tricksWon.west+S.tricksWon.north+S.tricksWon.east;
+
+  if(S.currentTrickNum>=13){
+    // Round complete
+    await endRound();
+    return;
+  }
+
+  S.currentTrickNum++;
+  S.turnIdx=PLAYERS.indexOf(winner);
+  setCenter(`Book #${S.currentTrickNum} — ${NAMES[winner]} leads`);
+  log(`--- Book #${S.currentTrickNum}: ${NAMES[winner]} leads ---`,'trick');
+  await delay(500);
+  processTurn();
+}
+
+async function endRound(){
+  S.phase='ROUND_END';
+  dimSouthHand();
+  const res=calculateRoundScores();
+  updateScoreTargets();
+
+  // Build round summary modal
+  const body=$id('modal-body');
+  const teamBox=(label,color,bid,won,pts,bags,made)=>{
+    const status=won>=bid?`✅ MADE (${won})`:`❌ MISSED (−${bid*10})`;
+    return `<div class="bg-slate-800/50 rounded-lg p-3 space-y-1">
+      <div class="flex justify-between items-center">
+        <span class="${color} font-bold">${label}</span>
+        <span>Bid <b>${bid}</b> · Won <b>${won}</b></span>
+        <span class="font-mono text-emerald-400 font-black">${pts>0?'+':''}${pts}</span>
+      </div>
+      <div class="text-[11px] text-slate-400">${status}</div>
+      ${bags>0?`<div class="text-[11px] text-amber-400">🎒 ${bags} overtrick${bags>1?'s':''} → +${bags} bags (watch out for −100 at 10)</div>`:''}
+    </div>`;
+  };
+  let html='<div class="space-y-2">';
+  html+=teamBox('US (N+S)','text-blue-300',res.usBid,res.usWon,res.usPts,res.rUs.bags,res.usWon>=res.usBid);
+  html+=teamBox('THEM (W+E)','text-red-300',res.themBid,res.themWon,res.themPts,res.rThem.bags,res.themWon>=res.themBid);
+  html+='</div>';
+  html+=`<div class="mt-2 p-3 rounded-lg bg-slate-900/60 border border-emerald-700/40 flex justify-between items-center">
+    <span class="text-slate-300 font-bold">Running total → 500</span>
+    <span class="font-mono font-black text-lg">${S.scores.us} — ${S.scores.them}</span></div>`;
+  html+=`<div class="flex justify-between text-lg font-bold mt-2"><span class="text-blue-300">US Score: <span class="font-mono">${S.scores.us}</span></span><span class="text-sm text-slate-500">to 500</span></div>`;
+  html+=`<div class="flex justify-between text-lg font-bold"><span class="text-red-300">THEM Score: <span class="font-mono">${S.scores.them}</span></span><span class="text-sm text-slate-500">to 500</span></div>`;
+  body.innerHTML=html;
+
+  // Game over check (500)
+  let over=false, winner='';
+  if(S.scores.us>=500 && S.scores.them>=500){
+    // both crossed on same hand: higher wins, ties -> continue
+    if(S.scores.us!==S.scores.them){ over=true; winner=(S.scores.us>S.scores.them?'US':'THEM'); }
+  } else if(S.scores.us>=500){ over=true; winner='US'; }
+  else if(S.scores.them>=500){ over=true; winner='THEM'; }
+
+  $id('round-badge').textContent='Round '+S.round;
+
+  if(over){
+    $id('modal-title').textContent='🏆 Game Over';
+    html+=`<div class="text-center text-2xl font-black mt-3 ${winner==='US'?'text-emerald-400':'text-red-400'}">${winner==='US'?'You Win! 🎉':'Opponents Win'}</div>`;
+    $id('modal-action').textContent='New Game';
+    $id('modal-action').onclick=()=>resetGame();
+    $id('round-modal').classList.remove('hidden');
+    log(`--- ${winner==='US'?'US':'THEM'} win the game! ---`,'score');
+    return;
+  }
+
+  $id('modal-title').textContent='Round Complete';
+  $id('modal-action').textContent='Next Round →';
+  $id('modal-action').onclick=()=>{ S.round++; S.dealerIdx=(S.dealerIdx+1)%4; startRound(); };
+  $id('round-modal').classList.remove('hidden');
+  log(`--- Round ${S.round} scores: US +${res.usPts}, THEM +${res.themPts} ---`,'score');
+}
+
+/* ===== NEW GAME ===== */
+window.resetGame=function(){
+  $id('round-modal').classList.add('hidden');
+  $id('bidding-modal').classList.add('hidden');
+  initState();
+  drawScoreboardPlaceholders();
+  startRound();
+};
+
+function drawScoreboardPlaceholders(){
+  PLAYERS.forEach(p=>{
+    S.bids[p]=null; S.nilBids[p]=false; S.tricksWon[p]=0;
+    const b=$id('bid-'+p+'-badge'); b.classList.add('hidden');
+  });
+  S.spadesBroken=false;
+  $id('spades-status').textContent='Spades sealed';
+  $id('spades-status').className='text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400';
+  updateScoreTargets();
+}
+
+/* ===== START ===== */
+initState();
+drawScoreboardPlaceholders();
+startRound();
+</script>
+</body>
+</html>
