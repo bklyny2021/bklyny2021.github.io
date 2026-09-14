@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Lo-Lifes Solitaire</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="games.js"></script>
+<style>
+  :root { --felt:#0f172a; --panel:#11161f; --border:#1e2633; --accent:#4fc3f7; --green:#2e7d5b; }
+  * { box-sizing:border-box; }
+  body { background:var(--felt); color:#d8e0ea; font-family:'Segoe UI',system-ui,sans-serif; margin:0; height:100dvh; overflow:hidden; }
+  .felt {
+    background:#1b4d3e;
+    background-image:radial-gradient(circle,#276753 1px,transparent 1.5px);
+    background-size:22px 22px;
+    height:100%; display:flex; flex-direction:column;
+  }
+  /* header */
+  header { background:rgba(9,12,19,.85); padding:6px 8px; display:flex; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid #1e2633; flex-shrink:0; flex-wrap:wrap; }
+  .title { font-weight:800; color:#81c784; font-size:.95rem; white-space:nowrap; }
+  header .stt { display:flex; gap:10px; align-items:center; font-size:.72rem; color:#9fb0c3; }
+  header .stt b { color:#d8e0ea; }
+  .btn { background:#2a3547; border:1px solid #3a4760; color:#d8e0ea; border-radius:8px; padding:4px 10px; font-size:.72rem; cursor:pointer; }
+  .btn:hover { background:#39455c; }
+  .btn.pri { background:#1f7a4d; border-color:#2e9b66; color:#fff; font-weight:700; }
+  /* score bar */
+  .sbar { display:flex; justify-content:space-between; padding:4px 10px; background:rgba(9,12,19,.6); font-size:.72rem; color:#9fb0c3; flex-shrink:0; }
+  .sbar b { color:#d8e0ea; }
+
+  /* game columns */
+  .game { flex:1; display:flex; flex-direction:column; min-height:0; padding:4px; }
+  .toprow { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px; flex-shrink:0; }
+  .waste-row { display:flex; gap:6px; }
+  .pile { width:min(15vw,58px); aspect-ratio:5/7; border:2px dashed rgba(255,255,255,.18); border-radius:6px; position:relative; flex-shrink:0; }
+  .pile .card { width:100%; height:100%; border-radius:5px; cursor:pointer; }
+  .empty-label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:rgba(255,255,255,.25); font-size:.65rem; }
+
+  /* THE CARD */
+  .card {
+    background:#fff; color:#111827; border-radius:6px; position:absolute; left:0; top:0;
+    width:min(15vw,58px); height:auto;
+    box-shadow:0 2px 6px rgba(0,0,0,.4); user-select:none; -webkit-user-select:none;
+    display:flex; flex-direction:column; padding:3px; font-size:.68rem;
+    touch-action:none;
+  }
+  .card .top { display:flex; justify-content:space-between; align-items:flex-start; line-height:1; }
+  .card .big { font-size:.85rem; font-weight:800; }
+  .card .bot { display:flex; justify-content:space-between; align-items:flex-end; line-height:1; transform:rotate(180deg); }
+  .card.red { color:#dc2626; }
+  .card.black { color:#1e293b; }
+  .card.face-down { background:repeating-linear-gradient(45deg,#1e3a5f,#1e3a5f 6px,#24507e 6px,#24507e 12px); }
+  .card.dragging { opacity:.65; }
+  .card.selected { box-shadow:0 0 0 3px #ffd700; }
+
+  /* columns */
+  .cols { flex:1; display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:2px; min-height:0; }
+  .col { position:relative; }
+  .cols .pile { width:100%; border-style:dashed; }
+  .cols .card { width:100%; }
+  .col .slot { width:100%; height:min(15vw,58px); border:1px dashed rgba(255,255,255,.15); border-radius:5px; }
+  .col .stacked { position:relative; margin-top:min(3.2vw,12px); }
+
+  /* win overlay */
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.7); display:none; align-items:center; justify-content:center; z-index:50; }
+  .overlay.show { display:flex; }
+  .winbox { background:#11161f; border:2px solid #81c784; border-radius:16px; padding:22px; width:min(92vw,360px); text-align:center; }
+  .winbox h2 { color:#81c784; margin:0 0 6px; }
+  .winbox p { margin:6px 0; color:#d8e0ea; font-size:.9rem; }
+  .winbox input { width:100%; padding:8px; border-radius:8px; border:1px solid #3a4760; background:#0f1522; color:#fff; font-size:1rem; margin:8px 0; }
+  .winbox .btn { width:100%; margin-top:6px; font-size:.85rem; padding:8px; }
+
+  @media (max-width:480px){
+    .game { padding:2px; }
+    .card { font-size:.56rem; padding:2px; }
+    .card .big { font-size:.72rem; }
+    header .stt { font-size:.62rem; }
+  }
+</style>
+</head>
+<body>
+<div class="felt">
+  <header>
+    <div class="title">♠ Lo-Lifes Solitaire</div>
+    <div class="stt">
+      <span>Score: <b id="score">0</b></span>
+      <span>⏱ <b id="timer">0:00</b></span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn" id="sound-btn" onclick="toggleSnd()">🔊</button>
+      <button class="btn pri" onclick="newGame()">New</button>
+    </div>
+  </header>
+  <div class="sbar"><span id="moves">Moves: 0</span><span id="state">Start by clicking the stock</span></div>
+
+  <div class="game">
+    <!-- TOP: foundations (right) + stock/waste (left) -->
+    <div class="toprow">
+      <div class="waste-row">
+        <div class="pile" id="stock"><span class="empty-label" id="stock-label">Stock</span></div>
+        <div class="pile" id="waste"><span class="empty-label">Waste</span></div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <div class="pile" id="f-0"></div>
+        <div class="pile" id="f-1"></div>
+        <div class="pile" id="f-2"></div>
+        <div class="pile" id="f-3"></div>
+      </div>
+    </div>
+
+    <!-- TABLEAU -->
+    <div class="cols" id="cols"></div>
+  </div>
+</div>
+
+<!-- WIN OVERLAY -->
+<div class="overlay" id="winOverlay">
+  <div class="winbox">
+    <h2>🏆 You Win!</h2>
+    <p id="winStats"></p>
+    <label style="font-size:.8rem;color:#9fb0c3">Enter your name:</label>
+    <input id="nameInput" maxlength="16" placeholder="Your name">
+    <button class="btn pri" onclick="saveWin()">Save &amp; New Game</button>
+  </div>
+</div>
+
+<script>
+/* ============ STATE ============ */
+const SUITS=['C','D','H','S'];
+const RN={1:'A',2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'X',11:'J',12:'Q',13:'K'};
+const SYM={C:'♣',D:'♦',H:'♥',S:'♠'};
+const RED={D:1,H:1,C:0,S:0};
+
+let S=null; // game state
+let selected=null; // pending tap-select [from, startIdx]
+let soundOn=true, t0=0, timerInt=null, moves=0;
+
+function makeDeck(){
+  const d=[];
+  for(const s of SUITS) for(let r=1;r<=13;r++) d.push({s,r,id:s+r,dn:!1});
+  return d;
+}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function newGame(){
+  if(timerInt) clearInterval(timerInt);
+  const deck=shuffle(makeDeck());
+  const tableau=[];
+  let k=0;
+  for(let i=0;i<7;i++){
+    const col=[];
+    for(let j=0;j<=i;j++){ col.push(deck[k++]); }
+    col[col.length-1].dn=false; // last face-up
+    tableau.push(col);
+  }
+  S={ foundations:[[],[],[],[]], tableau, stock:deck.slice(k), waste:[], won:false };
+  selected=null; moves=0;
+  t0=Date.now(); timerInt=setInterval(tick,1000);
+  document.getElementById('overlay')&&document.getElementById('overlay').classList.remove('show');
+  document.getElementById('score').textContent='0';
+  document.getElementById('moves').textContent='Moves: 0';
+  document.getElementById('state').textContent='Click the stock to draw';
+  render();
+}
+
+/* ============ AUDIO ============ */
+let AC=null,am=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)();am=AC.createGain();am.gain.value=.3;am.connect(AC.destination);}catch(e){return null}}if(AC.state==='suspended')AC.resume();return AC}
+function tone(f,d,ty,v,dl){const c=ac();if(!c||!soundOn)return;const t=c.currentTime+(dl||0);const o=c.createOscillator();o.type=ty||'square';o.frequency.setValueAtTime(f,t);const g=c.createGain();g.gain.setValueAtTime(v||.3,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(am||c.destination);o.start(t);o.stop(t+d+.02)}
+const SFX={ deal:()=>{tone(300,.05,'triangle',.15,0);tone(420,.05,'triangle',.15,.04)}, flip:()=>{tone(500,.04,'square',.12,0)}, place:()=>{tone(380,.06,'triangle',.2,0);tone(560,.05,'triangle',.14,.03)}, win:()=>{tone(523,.12,'sine',.3,0);tone(659,.12,'sine',.3,.1);tone(784,.12,'sine',.3,.2);tone(1047,.3,'sine',.35,.3)}, draw:()=>{tone(480,.04,'square',.12,0)} };
+function toggleSnd(){soundOn=!soundOn;if(soundOn)SFX.flip();}
+
+/* ============ RENDER ============ */
+function cardEl(c){
+  const d=document.createElement('div');
+  d.className='card '+(c.dn?'face-down':(RED[c.s]?'red':'black'));
+  if(c.dn){ d.textContent=''; }
+  else {
+    const r=(c.r===1)?'A':(c.r===11)?'J':(c.r===12)?'Q':(c.r===13)?'K':String(c.r);
+    const sym=SYM[c.s];
+    d.innerHTML='<div class="top"><span class="big">'+r+'</span><span>'+sym+'</span></div><div class="bot"><span>'+sym+'</span><span class="big">'+r+'</span></div>';
+  }
+  return d;
+}
+function render(){
+  // tableau
+  const cols=document.getElementById('cols');
+  cols.innerHTML='';
+  for(let ci=0;ci<S.tableau.length;ci++){
+    const cd=S.tableau[ci];
+    const col=document.createElement('div');
+    col.className='col';
+    col.dataset.ci=ci;
+    if(!cd.length){
+      const slot=document.createElement('div');
+      slot.className='slot'; slot.dataset.drop=ci; slot.dataset.idx='-1';
+      col.appendChild(slot);
+    } else {
+      for(let i=0;i<cd.length;i++){
+        const holder=document.createElement('div');
+        holder.style.position='relative';
+        holder.style.marginTop=(i>0?'min(3.2vw,12px)':'0');
+        const stack=document.createElement('div');
+        stack.className='stacked';
+        // place each card, offsetting stacked down
+        if(i>0){ stack.style.marginTop='-'+Math.min(3.2,3.2)*(i*0.9)+'px'; }
+        const el=cardEl(cd[i]);
+        el.dataset.ci=ci; el.dataset.idx=i; el.dataset.type='t';
+        el.style.position='relative';
+        holder.appendChild(el);
+        if(i===0) holder.style.marginTop='0';
+        col.appendChild(holder);
+      }
+    }
+    cols.appendChild(col);
+  }
+  // stock
+  const st=document.getElementById('stock');
+  st.innerHTML='<span class="empty-label" id="stock-label">'+ (S.stock.length?'':'Stock') +'</span>';
+  if(S.stock.length){ const b=document.createElement('div'); b.className='card face-down'; b.style.position='relative'; b.dataset.type='stock'; b.style.height='auto'; st.appendChild(b); }
+  // waste
+  const wa=document.getElementById('waste');
+  wa.innerHTML='<span class="empty-label">'+ (S.waste.length?'':'Waste') +'</span>';
+  if(S.waste.length){ const w=S.waste[S.waste.length-1]; const el=cardEl(w); el.style.position='relative'; el.dataset.type='waste'; wa.appendChild(el); }
+  // foundations
+  for(let fi=0;fi<4;fi++){
+    const f=document.getElementById('f-'+fi);
+    f.innerHTML='';
+    const fstack=S.foundations[fi];
+    if(fstack.length){ const el=cardEl(fstack[fstack.length-1]); el.style.position='relative'; el.dataset.type='f'; el.dataset.fi=fi; f.appendChild(el); }
+    else { const e=SYM[SUITS[fi]]; f.innerHTML='<span class="empty-label">'+e+'</span>'; }
+  }
+  document.getElementById('moves').textContent='Moves: '+moves;
+}
+
+/* ============ RULES / VALIDATION ============ */
+function canOnTableau(card, colIdx){
+  const col=S.tableau[colIdx];
+  if(!col.length) return card.r===13; // only King onto empty
+  const top=col[col.length-1];
+  return (RED[card.s]!==RED[top.s]) && (card.r===top.r-1);
+}
+function canOnFoundation(card, fi){
+  const f=S.foundations[fi];
+  if(!f.length) return card.r===1 && card.s===SUITS[fi]; // Ace of matching suit starts
+  const top=f[f.length-1];
+  return top.s===card.s && card.r===top.r+1;
+}
+
+/* Move a run [startIdx..] from source col -> tableau colIdx, or a waste/foundation card -> target */
+function tryMove(src, startIdx, destCol){
+  // src can be {type:'t',ci}, {type:'waste'}, {type:'f',fi}
+  let cards, col=null;
+  if(src.type==='t'){
+    col=S.tableau[src.ci];
+    if(startIdx>=col.length||startIdx<0) return false;
+    cards=col.slice(startIdx);
+    if(!isTopRun(cards)) return false; // must be a legal run
+  } else if(src.type==='waste'){
+    if(!S.waste.length) return false;
+    cards=[S.waste[S.waste.length-1]];
+  } else return false;
+
+  const dest=S.tableau[destCol];
+  const bottom=cards[0];
+  if(!canOnTableau(bottom,destCol)) return false;
+
+  // do move
+  if(src.type==='t') S.tableau[src.ci]=col.slice(0,startIdx);
+  else if(src.type==='waste') S.waste.pop();
+  // flip new top of source
+  if(src.type==='t' && S.tableau[src.ci].length && S.tableau[src.ci][S.tableau[src.ci].length-1].dn) S.tableau[src.ci][S.tableau[src.ci].length-1].dn=false;
+  dest.push(...cards);
+  moves++; SFX.place();
+  document.getElementById('moves').textContent='Moves: '+moves;
+  checkWasteToFoundationBottom();
+  render();
+  return true;
+}
+function isTopRun(cards){
+  if(!cards.length||cards[0].dn) return false;
+  for(let i=1;i<cards.length;i++){
+    if(cards[i].dn) return false;
+    if(RED[cards[i].s]===RED[cards[i-1].s]) return false;
+    if(cards[i].r!==cards[i-1].r-1) return false;
+  }
+  return true;
+}
+/* Auto-move bottom of waste / exposed tableau tops to a foundation if legal */
+function checkWasteToFoundationBottom(){
+  // waste top
+  if(S.waste.length){
+    const w=S.waste[S.waste.length-1];
+    for(let fi=0;fi<4;fi++) if(canOnFoundation(w,fi)){ S.foundations[fi].push(S.waste.pop()); SFX.place(); moves++; autoFoundationCheck(); render(); return; }
+  }
+}
+function autoFoundationCheck(){
+  // check tableau tops + waste for foundation moves, repeatedly
+  let again=true, guard=0;
+  while(again&&guard++<100){
+    again=false;
+    // waste
+    if(S.waste.length){
+      const w=S.waste[S.waste.length-1];
+      for(let fi=0;fi<4;fi++){ if(canOnFoundation(w,fi)){ S.foundations[fi].push(S.waste.pop()); again=true; SFX.place(); moves++; break; } }
+      if(again) continue;
+    }
+    // each tableau top
+    for(let ci=0;ci<7;ci++){
+      const col=S.tableau[ci];
+      if(!col.length) continue;
+      const top=col[col.length-1];
+      if(top.dn) continue;
+      for(let fi=0;fi<4;fi++){ if(canOnFoundation(top,fi)){ S.foundations[fi].push(col.pop()); again=true; SFX.place(); moves++; break; } }
+      if(again) break;
+    }
+  }
+  document.getElementById('moves').textContent='Moves: '+moves;
+}
+/* ============ INPUT ============ */
+function elFromTarget(ev){
+  const t=ev.target;
+  return t.classList&& (t.classList.contains('card')||t.classList.contains('pile')||t.classList.contains('slot'))?t:null;
+}
+// stock click
+document.getElementById('stock').addEventListener('click',(e)=>{
+  if(S.won) return;
+  if(!S.stock.length){
+    // redeal waste -> stock
+    S.stock=[...S.waste].reverse(); S.waste=[];
+    SFX.deal();
+  } else {
+    const c=S.stock.pop();
+    // draw 1 to waste (Klondike draw-one, keeps it simple & mobile-friendly)
+    // flip faces up on the waste card; check auto-move to foundation
+    S.waste.push({...c, dn:false});
+    checkWasteToFoundationBottom();
+    SFX.draw();
+    moves++;
+  }
+  render();
+});
+
+// click on a card: tap-to-select then tap destination
+document.querySelector('.felt').addEventListener('click',(e)=>{
+  if(S.won) return;
+  const t=elFromTarget(e); if(!t) return;
+  const type=t.dataset.type;
+  const ci=t.dataset.ci, idx=t.dataset.idx, fi=t.dataset.fi;
+  // click stock/waste handled partly; waste card tap -> move to foundation or select
+  if(type==='waste'){
+    // try auto to foundation
+    const w=S.waste[S.waste.length-1];
+    let done=false;
+    for(let f=0;f<4;f++) if(canOnFoundation(w,f)){ S.foundations[f].push(S.waste.pop()); SFX.place(); moves++; render(); done=true; break;}
+    document.getElementById('moves').textContent='Moves: '+moves;
+    if(done) return;
+    // else select as source
+    selected={type:'waste'}; clearSel(); render();
+    return;
+  }
+  if(type==='t'){
+    const col=S.tableau[ci];
+    const card=col[idx];
+    if(!card||card.dn) { selected=null; clearSel(); render(); return; } // can't move face-down
+    if(!selected){
+      // could be single-card move to foundation (tap directly)
+      let autoDone=false;
+      for(let f=0;f<4;f++) if(canOnFoundation(card,f)){ S.foundations[f].push(col.splice(idx,1)[0]); if(col.length&&col[col.length-1].dn) col[col.length-1].dn=false; SFX.place(); moves++; render(); autoDone=true; break;}
+      document.getElementById('moves').textContent='Moves: '+moves;
+      if(autoDone) { selected=null; clearSel(); return; }
+      // select this card as run source
+      selected={type:'t',ci:ci,idx:idx};
+      clearSel(); markSel(ci,idx); 
+    } else {
+      // destination column = ci
+      if(selected.type==='t' && selected.ci===ci){ selected=null; clearSel(); render(); return; }
+      tryMove(selected, selected.idx, ci);
+      selected=null; clearSel(); render();
+    }
+    return;
+  }
+  if(type==='f'){
+    // click foundation (empty target) from a selected card?
+    if(selected){
+      // try move selected bottom card to foundation fi
+      const bottom = selected.type==='t'? S.tableau[selected.ci][selected.idx] : S.waste[S.waste.length-1];
+      if(bottom && canOnFoundation(bottom,fi)){
+        if(selected.type==='t'){ const col=S.tableau[selected.ci]; S.foundations[fi].push(col.splice(selected.idx,1)[0]); if(col.length&&col[col.length-1].dn) col[col.length-1].dn=false; }
+        else { S.waste.pop(); S.foundations[fi].push(bottom); }
+        SFX.place(); moves++; selected=null; clearSel();
+        document.getElementById('moves').textContent='Moves: '+moves; render(); return;
+      }
+      selected=null; clearSel(); render(); return;
+    }
+  }
+});
+function markSel(ci,idx){ document.querySelectorAll('[data-ci="'+ci+'"][data-idx="'+idx+'"]').forEach(el=>el.classList.add('selected')); }
+function clearSel(){ document.querySelectorAll('.card').forEach(el=>el.classList.remove('selected')); }
+
+// Empty column drop targets
+document.querySelector('.cols').addEventListener('click',(e)=>{
+  const t=e.target;
+  if(t.classList&&t.classList.contains('slot')){
+    if(selected){ const ci=+t.dataset.drop; tryMove(selected, selected.idx, ci); selected=null; clearSel(); render(); }
+  }
+});
+
+/* ============ TIMER / SCORE ============ */
+function tick(){ const sec=Math.floor((Date.now()-t0)/1000); document.getElementById('timer').textContent=fmt(sec); }
+function fmt(s){ return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+/* Score: higher is better. Reward fewer moves + faster time, so the leaderboard ranks efficiency.
+   Base 2000 for winning, minus moves, minus time penalty. */
+function score(){
+  const sec=Math.round((Date.now()-t0)/1000);
+  return Math.max(100, 2000 - moves*2 - Math.floor(sec/10));
+}
+
+/* ============ WIN ============ */
+function checkWin(){
+  const total=S.foundations.reduce((a,f)=>a+f.length,0);
+  if(total===52 && !S.won){ S.won=true; win(); }
+}
+function win(){
+  if(timerInt) clearInterval(timerInt);
+  SFX.win();
+  const sec=Math.floor((Date.now()-t0)/1000);
+  document.getElementById('winStats').innerHTML='Score: <b>'+score()+'</b> · Moves: <b>'+moves+'</b> · Time: <b>'+fmt(sec)+'</b>';
+  document.getElementById('winOverlay').classList.add('show');
+  // prefill last name
+  try{ const last=localStorage.getItem('lolife_last_name'); if(last) document.getElementById('nameInput').value=last; }catch(e){}
+  document.getElementById('nameInput').focus();
+}
+function saveWin(){
+  const name=document.getElementById('nameInput').value.trim()||'Player';
+  try{ localStorage.setItem('lolife_last_name',name); }catch(e){}
+  if(typeof LoLifeGames!=='undefined'){
+    const sec=Math.floor((Date.now()-t0)/1000);
+    LoLifeGames.addScore('solitaire', name, score(), fmt(sec)+' · '+moves+' moves');
+  }
+  document.getElementById('winOverlay').classList.remove('show');
+  newGame();
+}
+// hook render to check win
+const _r=render;
+render=function(){ _r(); checkWin(); };
+
+/* audio unlock */
+function unlock(){ac();window.removeEventListener('click',unlock)}
+window.addEventListener('click',unlock);
+window.addEventListener('keydown',()=>ac());
+
+newGame();
+</script>
+</body>
+</html>
