@@ -154,11 +154,6 @@
   .play-count .pico { font-size: 0.9rem; }
   .play-count .phint { color: var(--dim); font-size: 0.72rem; margin-left: auto; }
   .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-  .clear-btn {
-    color: var(--dim); background: none; border: 1px solid var(--border); border-radius: 6px;
-    font-size: 0.72rem; padding: 3px 10px; cursor: pointer; margin-top: 8px; float: right;
-  }
-  .clear-btn:hover { color: var(--danger); border-color: var(--danger); }
   .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
   .tab {
     background: var(--panel); border: 1px solid var(--border); color: var(--dim);
@@ -254,7 +249,6 @@
         <div id="lb-log"><p class="empty">No activity yet.</p></div>
       </div>
     </div>
-    <button class="clear-btn" onclick="LoLifeGames.clearAll&&LoLifeGames.clearAll()">Clear saved game data</button>
   </div>
 
   <footer>Built with an agent fleet · First PC was a TRS-80 · 2026</footer>
@@ -318,14 +312,6 @@
       logEl.innerHTML = '<p class="empty">No activity for this game yet.</p>';
     }
   }
-  // Extend the shared helper with a clear-all (per game data)
-  LoLifeGames.clearAll = function gameClearAll(game){
-    if (!game){ if(!confirm('Clear all saved scores + logs for every game?')) return; }
-    var keys=[];
-    for (var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if (k.indexOf('lolife_games_')===0 && (!game || k.indexOf('_'+game)>=0 || k.indexOf('_log_'+game)>=0 || k.indexOf('_hs_'+game)>=0)) keys.push(k); }
-    keys.forEach(function(k){localStorage.removeItem(k);});
-    if (game) { activeGame=game; renderTabs(); renderPanel(); } else { renderTabs(); renderPanel(); }
-  };
   renderTabs(); renderPanel();
 })();
 </script>
