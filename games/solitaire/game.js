@@ -39,12 +39,80 @@
     timer: $('timer'),
     newGame: $('new-game'),
     restart: $('restart'),
+    soundToggle: $('sound-toggle'),
     winModal: $('win-modal'),
     winStats: $('win-stats'),
     winScore: $('win-score'),
     winMoves: $('win-moves'),
     winTime: $('win-time'),
     playAgain: $('play-again')
+  };
+
+  /* ------------------------------------------------------------------ */
+  /* Card sounds (Web Audio API, no external files)                     */
+  /* ------------------------------------------------------------------ */
+  var SND = {
+    ctx: null,
+    enabled: true,
+    ensure: function () {
+      if (this.ctx) return this.ctx;
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      this.ctx = new AC();
+      return this.ctx;
+    },
+    // resume context on first user gesture
+    unlock: function () {
+      if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+    },
+    tone: function (freq, dur, type, vol, delay) {
+      if (!this.enabled) return;
+      var ctx = this.ensure();
+      if (!ctx) return;
+      var t = ctx.currentTime + (delay || 0);
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = type || 'sine';
+      o.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime((vol || 0.15), t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.12));
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t + (dur || 0.12) + 0.05);
+    },
+    noise: function (dur, vol, delay) {
+      if (!this.enabled) return;
+      var ctx = this.ensure();
+      if (!ctx) return;
+      var t = ctx.currentTime + (delay || 0);
+      var len = Math.max(1, Math.floor((dur || 0.08) * ctx.sampleRate));
+      var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+      var data = buf.getChannelData(0);
+      for (var i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len);
+      var src = ctx.createBufferSource();
+      src.buffer = buf;
+      var g = ctx.createGain();
+      g.gain.setValueAtTime((vol || 0.2), t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.08));
+      var f = ctx.createBiquadFilter();
+      f.type = 'lowpass'; f.frequency.value = 700;
+      src.connect(f); f.connect(g); g.connect(ctx.destination);
+      src.start(t); src.stop(t + (dur || 0.08) + 0.02);
+    },
+    deal:  function () { this.noise(0.07, 0.15); this.tone(400, 0.05, 'square', 0.04); },
+    flip:  function () { this.tone(520, 0.07, 'triangle', 0.12); },
+    draw:  function () { this.tone(300, 0.06, 'triangle', 0.10); this.tone(420, 0.05, 'triangle', 0.06, 0.04); },
+    slide: function () { this.noise(0.06, 0.12); this.tone(260, 0.07, 'triangle', 0.08); },
+    stack: function () { this.tone(380, 0.07, 'sine', 0.10); this.tone(520, 0.06, 'sine', 0.08, 0.04); },
+    foundation: function () { this.tone(523, 0.09, 'sine', 0.12); this.tone(659, 0.09, 'sine', 0.10, 0.06); this.tone(784, 0.12, 'sine', 0.10, 0.12); },
+    win: function () {
+      var me = this;
+      [523, 659, 784, 1047, 1319].forEach(function (f, i) { me.tone(f, 0.16, 'sine', 0.13, i * 0.11); });
+    },
+    toggle: function () {
+      this.enabled = !this.enabled;
+      return this.enabled;
+    }
   };
 
   /* ------------------------------------------------------------------ */
@@ -149,6 +217,7 @@
     state.moves++;
     addScore(PTS.WASTE_TO_TABLEAU);
     syncMoves();
+    SND.slide();
     renderBoard();
     return true;
   }
@@ -163,6 +232,7 @@
     state.moves++;
     addScore(PTS.TO_FOUNDATION);
     syncMoves();
+    SND.foundation();
     renderBoard();
     checkWin();
     return true;
@@ -184,6 +254,7 @@
     syncMoves();
     // Auto-flip newly exposed card
     exposeTop(columnIdx);
+    SND.slide();
     renderBoard();
     return true;
   }
@@ -201,6 +272,7 @@
     addScore(PTS.TO_FOUNDATION);
     syncMoves();
     exposeTop(columnIdx);
+    SND.foundation();
     renderBoard();
     checkWin();
     return true;
@@ -219,6 +291,7 @@
     state.moves++;
     addScore(PTS.FOUNDATION_TO_TABLEAU);
     syncMoves();
+    SND.slide();
     renderBoard();
     return true;
   }
@@ -234,6 +307,7 @@
         addScore(PTS.RECYCLE_STOCK);
         state.moves++;
         syncMoves();
+        SND.slide();
         renderBoard();
       }
       return;
@@ -243,6 +317,7 @@
     state.waste.push(card);
     state.moves++;
     syncMoves();
+    SND.draw();
     renderStock();
     renderWaste();
   }
@@ -256,6 +331,7 @@
         state.moves++;
         addScore(PTS.TURN_OVER);
         syncMoves();
+        SND.flip();
       }
     }
   }
@@ -443,6 +519,7 @@
     els.winMoves.textContent = state.moves;
     els.winTime.textContent = formatTime(state.seconds);
     els.winModal.classList.add('show');
+    SND.win();
     // record high score through shared helper (if present)
     recordHighScore();
   }
@@ -535,6 +612,7 @@
     var activePointer = null;
 
     document.addEventListener('pointerdown', function (e) {
+      SND.unlock(); // allow audio to start after first user gesture
       if (state.won) return;
       var cardEl2 = e.target.closest('.card');
       if (!cardEl2) return;
@@ -699,7 +777,9 @@
       renderBoard();
     }
     // start timer
+    if (timerHandle) clearInterval(timerHandle);
     timerHandle = setInterval(tick, 1000);
+    SND.deal();
   }
 
   /* ------------------------------------------------------------------ */
