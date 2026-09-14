@@ -185,9 +185,12 @@ function startPassing(){
   if(S.passDir==='L'){ $('pass-msg').textContent='Pass 3 cards to the player on your LEFT.'; }
   else if(S.passDir==='R'){ $('pass-msg').textContent='Pass 3 cards to the player on your RIGHT.'; }
   else if(S.passDir==='X'){ $('pass-msg').textContent='Pass 3 cards ACROSS the table.'; }
-  else { $('pass-msg').textContent='No pass this hand (HOLD).'; }
+  else { $('pass-msg').textContent='No pass this hand (HOLD) — deal as-is.'; }
   $('pass-panel').classList.remove('hidden');
-  $('pass-btns').innerHTML = S.passDir==='H' ? '' : '<button class="btn btn-cy" onclick="confirmPass()">Pass 3</button>';
+  // HOLD round: give an explicit "start play" button so the player can advance.
+  $('pass-btns').innerHTML = S.passDir==='H'
+    ? '<button class="btn btn-cy" onclick="confirmPass()">▶ Start Playing</button>'
+    : '<button class="btn btn-cy" onclick="confirmPass()">Pass 3</button>';
   renderMyHand('pass');
 }
 window.confirmPass=function(){
