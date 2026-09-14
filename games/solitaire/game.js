@@ -45,8 +45,14 @@
     winScore: $('win-score'),
     winMoves: $('win-moves'),
     winTime: $('win-time'),
-    playAgain: $('play-again')
+    playAgain: $('play-again'),
+    nameModal: $('name-modal'),
+    nameInput: $('name-input'),
+    nameOk: $('name-ok')
   };
+
+  /* The name shown on the leaderboard. Persisted so it survives reloads. */
+  var playerName = localStorage.getItem('lolife_last_name') || '';
 
   /* ------------------------------------------------------------------ */
   /* Card sounds (Web Audio API, no external files)                     */
@@ -530,7 +536,7 @@
   function recordHighScore() {
     try {
       if (typeof LoLifeGames !== 'undefined') {
-        var name = localStorage.getItem('lolife_last_name') || 'Player';
+        var name = playerName || localStorage.getItem('lolife_last_name') || 'Player';
         LoLifeGames.addScore('solitaire', name, state.score,
           formatTime(state.seconds) + ' · ' + state.moves + ' moves');
       }
@@ -681,9 +687,15 @@
     document.addEventListener('pointercancel', function () { activePointer = null; drag = null; });
 
     // Buttons
-    els.newGame.addEventListener('click', newGame);
+    els.newGame.addEventListener('click', promptForName);
     els.restart.addEventListener('click', newGame);
     els.playAgain.addEventListener('click', function () { els.winModal.classList.remove('show'); newGame(); });
+
+    // Name modal: confirm with button or Enter
+    els.nameOk.addEventListener('click', confirmName);
+    els.nameInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); confirmName(); }
+    });
   }
 
   function findCardByKey(key) {
@@ -732,6 +744,27 @@
     }
     var ok = (count === totalExpected) && (uniq === totalExpected) && !dupFound && complete;
     return { ok: ok, count: count, uniq: uniq, dupFound: dupFound, complete: complete };
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* Player name entry — required at the start of each new game so the  */
+  /* high score is attributed.                                          */
+  /* ------------------------------------------------------------------ */
+  function promptForName() {
+    // prefill last-used name so repeat plays are quick
+    els.nameInput.value = playerName;
+    els.nameModal.classList.add('show');
+    setTimeout(function () { els.nameInput.focus(); els.nameInput.select(); }, 30);
+  }
+
+  function confirmName() {
+    var val = els.nameInput.value.trim().slice(0, 16);
+    if (val) {
+      playerName = val;
+      try { localStorage.setItem('lolife_last_name', val); } catch (e) {}
+    }
+    els.nameModal.classList.remove('show');
+    newGame();
   }
 
   /* ------------------------------------------------------------------ */
@@ -789,7 +822,7 @@
   /* ------------------------------------------------------------------ */
   function init() {
     initInput();
-    newGame();
+    promptForName(); // require a name before the first deal
   }
   document.addEventListener('DOMContentLoaded', init);
 })();

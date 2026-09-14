@@ -190,6 +190,31 @@ button:hover { background: rgba(255,255,255,0.22); }
   padding: 16px;
 }
 #win-modal.show { display: flex; }
+#name-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 110;
+  padding: 16px;
+}
+#name-modal.show { display: flex; }
+.name-prompt { color: #cfe8da; font-size: 0.92rem; margin-bottom: 14px; line-height: 1.4; }
+#name-input {
+  width: 100%;
+  font-size: 1.05rem;
+  text-align: center;
+  padding: 10px;
+  border-radius: 8px;
+  border: 2px solid var(--gold);
+  background: #123c2a;
+  color: #fff;
+  outline: none;
+  box-sizing: border-box;
+}
+#name-input:focus { border-color: #ffd97a; }
 .win-box {
   background: linear-gradient(#1b5a3a, #12452c);
   border: 2px solid var(--gold);

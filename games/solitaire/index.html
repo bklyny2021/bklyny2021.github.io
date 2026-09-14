@@ -68,6 +68,16 @@
     </div>
   </div>
 
+  <!-- Name entry modal: asked at the start of each new game so the score is attributed -->
+  <div id="name-modal" role="dialog" aria-modal="true" aria-labelledby="name-title">
+    <div class="win-box">
+      <h2 id="name-title">♠ Lo-Lifes Solitaire</h2>
+      <p class="name-prompt">Enter your name — it goes on the leaderboard with your score.</p>
+      <input id="name-input" type="text" maxlength="16" placeholder="Your name" autocomplete="off" />
+      <button id="name-ok">▶ Start Game</button>
+    </div>
+  </div>
+
   <script src="game.js"></script>
 </body>
 </html>
