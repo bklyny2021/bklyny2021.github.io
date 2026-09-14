@@ -120,6 +120,40 @@
       animation-iteration-count: 1 !important;
     }
   }
+
+  /* ===== Leaderboard / Activity log ===== */
+  .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; margin-top: 36px;
+  }
+  .panel h2 { color: var(--accent); font-size: 1.15rem; margin-bottom: 4px; }
+  .panel .hint { color: var(--dim); font-size: 0.8rem; margin-bottom: 12px; }
+  .score-row, .log-row {
+    display: flex; gap: 12px; align-items: center;
+    padding: 6px 10px; border-radius: 8px; margin-bottom: 4px; font-size: 0.9rem;
+  }
+  .score-row:nth-child(odd), .log-row:nth-child(odd) { background: rgba(255,255,255,0.03); }
+  .rank { width: 24px; color: var(--dim); font-weight: 700; flex-shrink: 0; }
+  .rank.top1 { color: #ffd700; }
+  .rank.top2 { color: #c0c0c0; }
+  .rank.top3 { color: #cd7f32; }
+  .pname { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pscore { color: var(--accent2); font-weight: 700; width: 70px; text-align: right; flex-shrink: 0; }
+  .pdetail { color: var(--dim); font-size: 0.78rem; width: 130px; text-align: right; flex-shrink: 0; }
+  .pwhen { color: var(--dim); font-size: 0.72rem; width: 130px; text-align: right; flex-shrink: 0; }
+  .empty { color: var(--dim); font-size: 0.85rem; padding: 8px 2px; font-style: italic; }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+  .clear-btn {
+    color: var(--dim); background: none; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 0.72rem; padding: 3px 10px; cursor: pointer; margin-top: 8px; float: right;
+  }
+  .clear-btn:hover { color: var(--danger); border-color: var(--danger); }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tab {
+    background: var(--panel); border: 1px solid var(--border); color: var(--dim);
+    border-radius: 20px; padding: 4px 14px; font-size: 0.8rem; cursor: pointer;
+  }
+  .tab.active { color: #fff; border-color: var(--accent); background: rgba(79,195,247,0.12); }
 </style>
 </head>
 <body>
@@ -167,7 +201,91 @@
 
   <div class="back"><a href="index.html">← Back to home</a></div>
 
+  <!-- ===== Leaderboard & Activity Log (reads each game's saved scores) ===== -->
+  <div class="panel" id="lb-panel">
+    <h2>🏆 Leaderboard &amp; Activity</h2>
+    <p class="hint">Top scores and recent plays saved in your browser for each game.</p>
+    <div class="tabs" id="lb-tabs"></div>
+    <div class="cols">
+      <div>
+        <h3 style="color:var(--accent);font-size:1rem;margin-bottom:8px">High Scores</h3>
+        <div id="lb-scores"><p class="empty">No scores yet — play a game!</p></div>
+      </div>
+      <div>
+        <h3 style="color:var(--accent);font-size:1rem;margin-bottom:8px">Activity Log</h3>
+        <div id="lb-log"><p class="empty">No activity yet.</p></div>
+      </div>
+    </div>
+    <button class="clear-btn" onclick="LoLifeGames.clearAll&&LoLifeGames.clearAll()">Clear saved game data</button>
+  </div>
+
   <footer>Built with an agent fleet · First PC was a TRS-80 · 2026</footer>
 </div>
+
+<script src="games/games.js"></script>
+<script>
+(function () {
+  if (typeof LoLifeGames === 'undefined') return;
+  var GAMES = [
+    { key: 'spades', label: '🃏 Spades', game: 'spades' },
+    { key: 'solitaire', label: '🗃️ Solitaire', game: 'solitaire' }
+  ];
+  // default to Spades (first game with data, else first)
+  var tabsEl = document.getElementById('lb-tabs');
+  var scoresEl = document.getElementById('lb-scores');
+  var logEl = document.getElementById('lb-log');
+  var activeGame = 'spades';
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+  function renderTabs(){
+    tabsEl.innerHTML = GAMES.map(function(g){
+      var has = LoLifeGames.getScores(g.game, 1).length > 0;
+      return '<button class="tab' + (g.game===activeGame?' active':'') + '" onclick="window.__lbSel&&__lbSel(\''+g.game+'\')">' + g.label + (has?'':'') + '</button>';
+    }).join('');
+  }
+  window.__lbSel = function(g){ activeGame = g; renderTabs(); renderPanel(); };
+
+  function renderPanel(){
+    var scores = LoLifeGames.getScores(activeGame, 10);
+    if (scores.length){
+      scoresEl.innerHTML = scores.map(function(r,i){
+        var rk = 'rank';
+        if (i===0) rk+=' top1'; else if (i===1) rk+=' top2'; else if (i===2) rk+=' top3';
+        return '<div class="score-row"><span class="'+rk+'">'+(i+1)+'</span>' +
+          '<span class="pname">'+esc(r.player)+'</span>' +
+          '<span class="pscore">'+esc(r.score)+'</span>' +
+          (r.detail?'<span class="pdetail">'+esc(r.detail)+'</span>':'') +
+          '</div>';
+      }).join('');
+    } else {
+      scoresEl.innerHTML = '<p class="empty">No scores for this game yet.</p>';
+    }
+    var log = LoLifeGames.getLog(activeGame, 50);
+    if (log.length){
+      logEl.innerHTML = log.slice().reverse().map(function(e){
+        var who = e.player ? esc(e.player) : '—';
+        var what = e.type === 'score'
+          ? '<b style="color:var(--accent2)">'+esc(e.score)+'</b> pts' + (e.detail?' · '+esc(e.detail):'')
+          : esc(e.type||'play');
+        return '<div class="log-row"><span class="pwhen">'+esc(e.when||'')+'</span>' +
+          '<span class="pname">'+who+'</span>' +
+          '<span class="pdetail">'+what+'</span></div>';
+      }).join('');
+    } else {
+      logEl.innerHTML = '<p class="empty">No activity for this game yet.</p>';
+    }
+  }
+  // Extend the shared helper with a clear-all (per game data)
+  LoLifeGames.clearAll = function gameClearAll(game){
+    if (!game){ if(!confirm('Clear all saved scores + logs for every game?')) return; }
+    var keys=[];
+    for (var i=0;i<localStorage.length;i++){ var k=localStorage.key(i); if (k.indexOf('lolife_games_')===0 && (!game || k.indexOf('_'+game)>=0 || k.indexOf('_log_'+game)>=0 || k.indexOf('_hs_'+game)>=0)) keys.push(k); }
+    keys.forEach(function(k){localStorage.removeItem(k);});
+    if (game) { activeGame=game; renderTabs(); renderPanel(); } else { renderTabs(); renderPanel(); }
+  };
+  renderTabs(); renderPanel();
+})();
+</script>
 </body>
 </html>

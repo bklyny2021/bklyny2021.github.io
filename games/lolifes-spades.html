@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Lo-Lifes Spades</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<script src="games.js"></script>
 <style>
 body { background:#0f172a; }
 .poker-felt {
@@ -240,6 +241,27 @@ function tone(freq,dur,type,vol,delay){
   o.connect(g); g.connect(audioMaster||ctx.destination);
   o.start(t); o.stop(t+dur+0.02);
 }
+/* White-noise burst (high-passed) = the "crash/shatter" part of breaking glass. */
+function glassNoise(){
+  const ctx=ac(); if(!ctx||!soundOn) return;
+  const t=ctx.currentTime;
+  const dur=0.35;
+  // noise buffer
+  const len=Math.max(1,Math.floor(ctx.sampleRate*dur));
+  const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<len;i++){ d[i]=(Math.random()*2-1)*(1-i/len); }
+  const src=ctx.createBufferSource(); src.buffer=buf;
+  // high-pass to make it sound like glass shards, not a dull rumble
+  const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=1600;
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(0.4,t);
+  g.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  src.connect(hp); hp.connect(g); g.connect(audioMaster||ctx.destination);
+  src.start(t); src.stop(t+dur+0.02);
+  // small low "thud" for the initial impact
+  tone(180,0.12,'sine',0.2,0);
+}
 const SND={
   deal:      ()=>{ for(let i=0;i<3;i++) tone(220+ i*60,0.08,'triangle',0.2,i*0.04); },
   play:      ()=>{ tone(520,0.09,'square',0.28); tone(700,0.06,'triangle',0.15,0.02); },
@@ -248,7 +270,9 @@ const SND={
   win:       ()=>{ tone(660,0.10,'sine',0.3); tone(880,0.10,'sine',0.3,0.08); tone(1100,0.16,'sine',0.3,0.16); },
   lose:      ()=>{ tone(300,0.14,'sawtooth',0.2); tone(220,0.18,'sawtooth',0.2,0.1); },
   bag:       ()=>{ tone(150,0.2,'sawtooth',0.25,0); tone(120,0.25,'sawtooth',0.2,0.1); },
-  bid:       ()=>{ tone(500,0.08,'triangle',0.2,0); tone(650,0.08,'triangle',0.2,0.06); }
+  bid:       ()=>{ tone(500,0.08,'triangle',0.2,0); tone(650,0.08,'triangle',0.2,0.06); },
+  /* Glass breaking: short noise crackle + sharp crystalline "shards" (Web Audio, no files) */
+  glass:     ()=>{ glassNoise(); tone(2200,0.06,'triangle',0.28,0); tone(3100,0.05,'triangle',0.22,0.03); tone(1800,0.08,'square',0.14,0.06); tone(4000,0.04,'sine',0.12,0.09); }
 };
 window.toggleSound=function(){ soundOn=!soundOn; if(soundOn) SND.bid(); return soundOn; };
 /* Browsers block audio until a user gesture — unlock on first interaction */
@@ -882,6 +906,7 @@ function playCardToTable(player,card){
   // Street rules: playing a spade OR a top-trump (joker/2D/2S) breaks spades
   if((card.suit==='Spades' || card.trumpPower!=null) && !S.spadesBroken){
     S.spadesBroken=true;
+    SND.glass(); // glass breaking sound!
     log(`⚡ Spades broken by ${NAMES[player]}'s ${card.isJoker?card.isJoker+' joker':card.label+SYMBOLS[card.suit]}`,'broken');
     $id('spades-status').textContent='♠ Spades broken!';
     $id('spades-status').className='text-[10px] bg-amber-950/80 px-2 py-0.5 rounded-full text-amber-300 font-semibold';
@@ -912,6 +937,9 @@ async function resolveTrick(){
 
   // Win sound + collect animation: highlight winner, cards fly toward them
   SND.win();
+  // Glass-breaking when a TRUMP card takes the trick (spade, joker, 2D, 2S)
+  // This includes the big joker taking the little joker, and any trump capture.
+  if(isTrumpCard(winningCard)) SND.glass();
   setCenter(`${NAMES[winner]} wins the book`);
   // Pop the winning card + pull the whole trick in toward the winner
   const winEl=$id('play-'+winner);
@@ -993,6 +1021,15 @@ async function endRound(){
     $id('modal-action').onclick=()=>resetGame();
     $id('round-modal').classList.remove('hidden');
     log(`--- ${winner==='US'?'US':'THEM'} win the game! ---`,'score');
+    // Record high score + activity log (localStorage, shared with the Games page)
+    try {
+      if (typeof LoLifeGames !== 'undefined' && typeof playerName !== 'undefined') {
+        const usScore = S.scores.us||0, themScore = S.scores.them||0;
+        const detail = winner==='US' ? 'Won vs THEM ('+themScore+') · Round '+S.round
+                                     : 'Lost vs THEM ('+themScore+') · Round '+S.round;
+        LoLifeGames.addScore('spades', playerName, usScore, detail);
+      }
+    } catch(e){}
     return;
   }
 
