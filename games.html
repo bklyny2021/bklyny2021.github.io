@@ -274,6 +274,10 @@
     <h2>🏆 Leaderboard &amp; Activity</h2>
     <p class="hint">Top scores and recent plays saved in your browser for each game.</p>
     <div class="tabs" id="lb-tabs"></div>
+    <div id="lb-world" class="play-count" style="margin-bottom:12px">
+      <span class="pico" style="font-size:0.9rem">🌎</span> Worldwide Times Played: <b id="lb-world-total">…</b>
+      <span class="phint">every player, every device — games launched</span>
+    </div>
     <div class="cols">
       <div>
         <h3 style="color:var(--accent);font-size:1rem;margin-bottom:8px">High Scores</h3>
@@ -291,6 +295,7 @@
 </div>
 
 <script src="games/games.js"></script>
+<script src="games/world-counter.js"></script>
 <script>
 (function () {
   if (typeof LoLifeGames === 'undefined') return;
@@ -348,7 +353,15 @@
       logEl.innerHTML = '<p class="empty">No activity for this game yet.</p>';
     }
   }
+  function loadWorldTotal(){
+    var el = document.getElementById('lb-world-total');
+    if (!el || typeof LoLifeWorldCounter === 'undefined') return;
+    LoLifeWorldCounter.getTotal(function(t){
+      el.textContent = (t && typeof t.total === 'number') ? t.total.toLocaleString() : '…';
+    });
+  }
   renderTabs(); renderPanel();
+  loadWorldTotal();
 })();
 </script>
 </body>

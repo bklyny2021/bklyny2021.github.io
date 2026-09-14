@@ -6,6 +6,7 @@
 <title>Lo-Lifes Spades</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="games.js"></script>
+<script src="world-counter.js"></script>
 <style>
 body { background:#0f172a; }
 .poker-felt {
@@ -1044,6 +1045,7 @@ async function endRound(){
 window.resetGame=function(){
   // Times played (localStorage, counts every launch/new game even if not finished)
   try { if (typeof LoLifeGames !== 'undefined') LoLifeGames.countPlay('spades'); } catch (e) {}
+  try { if (typeof LoLifeWorldCounter !== 'undefined') LoLifeWorldCounter.record('spades'); } catch (e) {}
   $id('round-modal').classList.add('hidden');
   $id('bidding-modal').classList.add('hidden');
   initState();
@@ -1064,6 +1066,7 @@ function drawScoreboardPlaceholders(){
 
 /* ===== START ===== */
 try { if (typeof LoLifeGames !== 'undefined') LoLifeGames.countPlay('spades'); } catch (e) {}
+try { if (typeof LoLifeWorldCounter !== 'undefined') LoLifeWorldCounter.record('spades'); } catch (e) {}
 initState();
 drawScoreboardPlaceholders();
 startRound();
