@@ -14,8 +14,12 @@ body { background:#0f172a; }
 .card-face:hover{ transform:translateY(-3px); }
 .card-face.red{ color:#dc2626; }
 .card-face.sel{ outline:3px solid #22d3ee; transform:translateY(-6px); }
-.card-back-img{ width:42px; height:60px; border-radius:6px; background-image:url('card_back.jpg'); background-size:cover; background-position:center; box-shadow:0 2px 4px rgba(0,0,0,.4); }
-.trick-card{ position:absolute; transform:translate(-50%,-50%); }
+.card-back-img{ width:48px; height:68px; border-radius:6px; background-image:url('card_back.jpg'); background-size:cover; background-position:center; margin:-12px; box-shadow:0 1px 4px rgba(0,0,0,.35); flex-shrink:0; }
+/* phone: shrink the opponent hands like Spades */
+@media (max-width:640px){
+  .card-back-img{ width:30px; height:42px; margin:-6px; }
+}
+.trick-card{ position:absolute; }
 .glog{ background:rgba(15,23,42,.6); border:1px solid #334155; border-radius:8px; max-height:190px; overflow-y:auto; font-size:12px; line-height:1.55; }
 .btn{ padding:6px 14px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; border:none; }
 .btn-em{ background:#10b981; color:#052e16; } .btn-em:disabled{ opacity:.4; cursor:default; }
@@ -406,29 +410,31 @@ function renderMyHand(mode){
   });
 }
 function renderOpponents(){
-  const seats=[1,2,3]; const label={1:'East',2:'North',3:'West'};
-  const pos = {
-    1:{el:'seat-east', label:'EAST'},
-    2:{el:'seat-north', label:'NORTH'},
-    3:{el:'seat-west', label:'WEST'}
-  };
+  const seats=[1,2,3]; const pos = {1:{el:'seat-east',label:'EAST'},2:{el:'seat-north',label:'NORTH'},3:{el:'seat-west',label:'WEST'}};
   seats.forEach(seat=>{
     const host=$(pos[seat].el); host.innerHTML='';
-    const lbl=document.createElement('div'); lbl.className='text-center text-[11px] font-bold text-emerald-200 mb-1'; lbl.textContent=pos[seat].label+' ('+S.hands[seat].length+' cards)';
-    const row=document.createElement('div'); row.className='flex gap-1 justify-center';
-    S.hands[seat].forEach(()=>{ row.appendChild(cardEl(null,{back:true})); });
+    const lbl=document.createElement('div'); lbl.className='text-center text-[11px] font-bold text-emerald-200 mb-0.5'; lbl.textContent=pos[seat].label+' ('+S.hands[seat].length+')';
+    const row=document.createElement('div');
+    const isSide=(seat===1||seat===3); // East/West vertical, like Spades
+    // Spades technique: North horizontal fan (-space-x), West/East vertical (-space-y)
+    row.className = isSide ? 'flex flex-col justify-center' : 'flex';
+    row.style.alignItems='center';
+    if(isSide){ row.style.flexDirection='column'; } // vertical for East/West
+    const n=Math.min(8, S.hands[seat].length); // compact pile, cap visible backs
+    for(let i=0;i<n;i++){ row.appendChild(cardEl(null,{back:true})); }
     host.appendChild(lbl); host.appendChild(row);
   });
 }
 function renderTrickOnTable(){
   const ta=$('trick-area'); ta.innerHTML='';
-  const pos={0:'bottom-1/2 left-1/2',1:'right-[8%] top-1/2',2:'top-[8%] left-1/2',3:'left-[8%] top-1/2'};
+  // Cluster the played cards in the CENTER of the table (clear of the edge hands).
+  // North/South offset vertically, West/East horizontally — all near the middle.
   S.trick.forEach(t=>{
     const e=cardEl(t.card); e.classList.add('trick-card');
-    if(t.seat===0){ e.style.left='50%'; e.style.bottom='6%'; }
-    else if(t.seat===1){ e.style.right='8%'; e.style.top='50%'; }
-    else if(t.seat===2){ e.style.left='50%'; e.style.top='8%'; }
-    else if(t.seat===3){ e.style.left='8%'; e.style.top='50%'; }
+    if(t.seat===2){ e.style.left='50%'; e.style.top='42%'; e.style.transform='translate(-50%,-50%)'; }
+    else if(t.seat===3){ e.style.left='42%'; e.style.top='58%'; e.style.transform='translate(-50%,-50%)'; }
+    else if(t.seat===1){ e.style.left='58%'; e.style.top='58%'; e.style.transform='translate(-50%,-50%)'; }
+    else if(t.seat===0){ e.style.left='50%'; e.style.top='50%'; e.style.transform='translate(-50%,-50%)'; }
     ta.appendChild(e);
   });
   renderOpponents();
