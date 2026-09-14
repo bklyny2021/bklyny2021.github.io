@@ -357,6 +357,7 @@ function endTrick(){
     applyRoundScores();
     renderScoreboard();
     log('--- Hand complete ---');
+    recordHighScore();
     if(checkEnd()) return;
     S.round++;
     startHand();
@@ -502,6 +503,16 @@ window.toggleLogWindow=function(){ const w=document.getElementById('log-window')
   window.addEventListener('mousemove',function(e){ if(!dragging) return; const x=Math.min(window.innerWidth-30,Math.max(0,e.clientX-offX)); const y=Math.min(window.innerHeight-30,Math.max(0,e.clientY-offY)); win.style.left=x+'px'; win.style.top=y+'px'; win.style.right='auto'; win.style.bottom='auto'; });
   window.addEventListener('mouseup',function(){ dragging=false; });
 })();
+/* Record a Hearts high score — Hearts is LOWEST-wins, so we store the player's
+   points as a NEGATIVE so the best (lowest-point) games rank highest on the leaderboard. */
+function recordHighScore(){
+  try{
+    if(typeof LoLifeGames==='undefined') return;
+    const name = (typeof localStorage!=='undefined' && localStorage.getItem('lolife_last_name')) || 'Player';
+    const pts = S.scores[0] != null ? S.scores[0] : 0;
+    LoLifeGames.addScore('dirty_hearts', name, -pts, pts+' pts · round '+S.round);
+  }catch(e){}
+}
 function showModal(html,btn){
   $('modal-box').innerHTML='<div class="text-2xl mb-3">'+html.split('<br>')[0]+'</div><div class="mb-4">'+html+'</div><button class="btn btn-em" onclick="closeModal()">'+btn+'</button>';
   $('modal').classList.remove('hidden');
