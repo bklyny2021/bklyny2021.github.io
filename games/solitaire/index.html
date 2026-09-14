@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Lo-Life Solitaire — Klondike</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="../games.js"></script>
+</head>
+<body>
+  <div id="app">
+
+    <!-- HUD: score, moves, timer + controls -->
+    <header id="hud">
+      <div class="hud-brand">♠ Lo-Life Solitaire</div>
+      <div class="hud-stats" aria-label="Game stats">
+        <span>Score <b id="score">0</b></span>
+        <span>Moves <b id="moves">0</b></span>
+        <span>Time <b id="timer">00:00</b></span>
+      </div>
+      <div class="hud-btns">
+        <button id="restart" title="Restart">Restart</button>
+        <button id="new-game" title="New game">New</button>
+      </div>
+    </header>
+
+    <!-- Game board -->
+    <main id="board">
+
+      <!-- Top row: stock + waste (left), foundations (right) -->
+      <section id="top-row" aria-label="Stock, waste and foundations">
+        <div id="stock-waste">
+          <div id="stock" class="pile" role="button" tabindex="0" aria-label="Stock">
+            <span id="stock-count"></span>
+          </div>
+          <div id="waste" class="pile empty-slot" aria-label="Waste"></div>
+        </div>
+        <div id="foundations" aria-label="Foundations">
+          <div id="f0" class="pile empty-slot"></div>
+          <div id="f1" class="pile empty-slot"></div>
+          <div id="f2" class="pile empty-slot"></div>
+          <div id="f3" class="pile empty-slot"></div>
+        </div>
+      </section>
+
+      <!-- Tableau: 7 columns -->
+      <section id="tableau" aria-label="Tableau">
+        <div id="c0" class="column"></div>
+        <div id="c1" class="column"></div>
+        <div id="c2" class="column"></div>
+        <div id="c3" class="column"></div>
+        <div id="c4" class="column"></div>
+        <div id="c5" class="column"></div>
+        <div id="c6" class="column"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Win modal -->
+  <div id="win-modal" role="dialog" aria-modal="true" aria-labelledby="win-title">
+    <div class="win-box">
+      <h2 id="win-title">🏆 You Win!</h2>
+      <div class="win-row"><span>Final Score</span><b id="win-score">0</b></div>
+      <div class="win-row"><span>Moves</span><b id="win-moves">0</b></div>
+      <div class="win-row"><span>Time</span><b id="win-time">00:00</b></div>
+      <button id="play-again">Play Again</button>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>

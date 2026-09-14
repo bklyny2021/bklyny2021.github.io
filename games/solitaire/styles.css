@@ -1,0 +1,220 @@
+/* =========================================================================
+   Lo-Life Solitaire — Klondike styling
+   Filename: styles.css
+   Classic green felt tabletop, responsive, phone-first.
+   ========================================================================= */
+
+:root {
+  --felt: #1a6b48;
+  --felt-dark: #123c2a;
+  --felt-edge: #0d2a1d;
+  --card-w: clamp(44px, 12vw, 64px);
+  --card-h: calc(var(--card-w) * 1.4);
+  --card-radius: 7px;
+  --overlap: 26px;
+  --ink: #212121;
+  --red: #c22f2f;
+  --gold: #f2c14e;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #0d2416;
+  color: #eaf4ec;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+/* green felt tabletop with subtle radial sheen */
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.06) 0%, transparent 55%),
+    radial-gradient(ellipse at center, var(--felt) 0%, var(--felt-dark) 72%, var(--felt-edge) 100%);
+  border-radius: 6px;
+}
+
+/* ---------- HUD ---------- */
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border-bottom: 2px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.hud-brand { font-weight: 800; font-size: 0.95rem; letter-spacing: 0.5px; }
+.hud-stats { display: flex; gap: 16px; font-size: 0.85rem; }
+.hud-stats .label { color: #cfe6d8; }
+.hud-stats b { color: #fff; font-variant-numeric: tabular-nums; }
+#score, #moves { color: #ffd97a; }
+#timer { color: #aef0cd; }
+.hud-btns { display: flex; gap: 6px; }
+button {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+button:hover { background: rgba(255,255,255,0.22); }
+#new-game { background: #2f8f4f; border-color: #3fae64; }
+#new-game:hover { background: #3ba75e; }
+
+/* ---------- Board ---------- */
+#board {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  gap: 10px;
+}
+
+/* top row: stock, waste, then foundations */
+#top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+#stock-waste { display: flex; gap: 10px; }
+#foundations { display: flex; gap: 8px; }
+
+.pile {
+  position: relative;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-radius);
+}
+.pile.empty-slot {
+  border: 2px dashed rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.04);
+}
+.placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.4);
+  font-size: 1.3rem;
+  pointer-events: none;
+}
+#stock { background: linear-gradient(135deg, #31507e, #1d3252); border-radius: var(--card-radius); }
+#stock-count {
+  position: absolute;
+  bottom: 2px;
+  right: 3px;
+  font-size: 0.7rem;
+  color: #fff;
+  background: rgba(0,0,0,0.5);
+  padding: 0 4px;
+  border-radius: 6px;
+}
+#stock.empty { opacity: 0.5; }
+
+/* ---------- Cards ---------- */
+.card {
+  position: absolute;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--card-radius);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45), inset 0 0 0 1px #ddd;
+  cursor: pointer;
+  z-index: 1;
+  transition: box-shadow 0.1s;
+}
+.card.back {
+  background: #1d3252;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(255,255,255,0.2);
+  overflow: hidden;
+}
+.card.back::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: url('card_back.jpg') center / cover no-repeat;
+  border-radius: calc(var(--card-radius) - 2px);
+}
+.card.up.black { color: var(--ink); }
+.card.up.red { color: var(--red); }
+.card .corner { position: absolute; top: 4px; left: 5px; line-height: 1; font-weight: 700; }
+.card .corner .big { font-size: calc(var(--card-w) * 0.42); }
+.card .corner .sym { font-size: calc(var(--card-w) * 0.42); }
+.card .corner.bottom { top: auto; bottom: 4px; left: auto; right: 5px; transform: rotate(180deg); font-size: calc(var(--card-w) * 0.3); }
+.card .center { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: calc(var(--card-w) * 0.6); opacity: 0.9; }
+.card.dragging { opacity: 0.55; }
+
+/* ---------- Tableau ---------- */
+#tableau {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  align-items: start;
+  justify-items: center;
+}
+.column { position: relative; width: 100%; height: 100%; }
+.column .card { left: 50%; transform: translateX(-50%); }
+.column .card.back, .column .card.up { }
+
+/* top of waste card slightly raised */
+.card.top-waste { cursor: pointer; }
+
+/* ---------- Win modal ---------- */
+#win-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+#win-modal.show { display: flex; }
+.win-box {
+  background: linear-gradient(#1b5a3a, #12452c);
+  border: 2px solid var(--gold);
+  border-radius: 16px;
+  padding: 26px;
+  text-align: center;
+  max-width: 360px;
+  width: 100%;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  animation: pop 0.3s ease-out;
+}
+@keyframes pop { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.win-box h2 { color: var(--gold); font-size: 1.6rem; margin-bottom: 12px; }
+.win-row { display: flex; justify-content: space-between; margin: 8px 0; font-size: 1rem; }
+.win-row b { color: #fff; }
+.win-box button { margin-top: 16px; width: 100%; font-size: 1rem; background: var(--gold); color: #123c2a; border: none; }
+.win-box button:hover { background: #ffd97a; }
+
+/* ---------- Responsive: small phones ---------- */
+@media (max-width: 480px) {
+  :root { --overlap: 20px; }
+  #hud { padding: 6px 8px; gap: 6px; }
+  .hud-stats { gap: 10px; font-size: 0.7rem; }
+  .hud-brand { font-size: 0.8rem; }
+  button { padding: 5px 9px; font-size: 0.7rem; }
+  #board { padding: 6px; gap: 6px; }
+  .column .card { }
+}
