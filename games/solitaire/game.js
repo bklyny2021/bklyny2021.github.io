@@ -318,9 +318,13 @@
       }
       return;
     }
-    var card = state.stock.pop();
-    card.faceUp = true;
-    state.waste.push(card);
+    // 3-card draw: reveal up to 3 new cards per click (Klondike rules).
+    var n = Math.min(3, state.stock.length);
+    for (var i = 0; i < n; i++) {
+      var card = state.stock.pop();
+      card.faceUp = true;
+      state.waste.push(card);
+    }
     state.moves++;
     syncMoves();
     SND.draw();
@@ -429,13 +433,22 @@
   function renderWaste() {
     els.waste.innerHTML = '';
     if (state.waste.length) {
-      var c = state.waste[state.waste.length - 1];
-      var el = cardEl(c);
-      el.classList.add('top-waste');
-      el.addEventListener('dblclick', function () {
-        autoMove(c, 'waste', -1, -1);
-      });
-      els.waste.appendChild(el);
+      // In 3-card draw, show the current draw group (last up to 3) as a
+      // small fan; only the topmost card is playable.
+      var start = Math.max(0, state.waste.length - 3);
+      for (var i = start; i < state.waste.length; i++) {
+        var c = state.waste[i];
+        var el = cardEl(c);
+        el.style.left = ((i - start) * 5) + 'px';
+        el.style.top = ((i - start) * 2) + 'px';
+        if (i === state.waste.length - 1) {
+          el.classList.add('top-waste');
+          el.addEventListener('dblclick', (function (card) {
+            return function () { autoMove(card, 'waste', -1, -1); };
+          })(c));
+        }
+        els.waste.appendChild(el);
+      }
     } else {
       els.waste.classList.add('empty-slot');
       var ph = document.createElement('div');
