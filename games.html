@@ -274,9 +274,14 @@
     <h2>🏆 Leaderboard &amp; Activity</h2>
     <p class="hint">Top scores and recent plays saved in your browser for each game.</p>
     <div class="tabs" id="lb-tabs"></div>
-    <div id="lb-world" class="play-count" style="margin-bottom:12px">
-      <span class="pico" style="font-size:0.9rem">🌎</span> Worldwide Times Played: <b id="lb-world-total">…</b>
-      <span class="phint">every player, every device — games launched</span>
+    <div id="lb-world" style="margin-bottom:16px">
+      <h3 style="color:var(--accent);font-size:1rem;margin-bottom:8px">🌎 Worldwide Plays — per game</h3>
+      <p class="hint" style="margin-bottom:8px">Total game launches from every player, every device.</p>
+      <div id="lb-world-pergame"></div>
+      <div class="play-count" style="margin-top:8px">
+        <span class="pico" style="font-size:0.9rem">🌎</span> Worldwide Total: <b id="lb-world-total">…</b>
+        <span class="phint">all games combined</span>
+      </div>
     </div>
     <div class="cols">
       <div>
@@ -355,9 +360,27 @@
   }
   function loadWorldTotal(){
     var el = document.getElementById('lb-world-total');
+    var pg = document.getElementById('lb-world-pergame');
     if (!el || typeof LoLifeWorldCounter === 'undefined') return;
+    var GAME_META = [
+      { key:'spades', label:'🃏 Lo-Lifes Spades' },
+      { key:'solitaire', label:'🗃️ Lo-Lifes Solitaire' },
+      { key:'dirty_hearts', label:'🖤 Lo-Lifes Hearts' },
+      { key:'spit', label:'💨 Lo-Lifes Spit' },
+      { key:'crazy_eights', label:'8️⃣ Lo-Lifes Crazy Eights' },
+      { key:'video_poker', label:'♠️ Lo-Lifes Video Poker' }
+    ];
     LoLifeWorldCounter.getTotal(function(t){
+      var data = (t && t.games) ? t.games : {};
       el.textContent = (t && typeof t.total === 'number') ? t.total.toLocaleString() : '…';
+      var rows = GAME_META.map(function(g){
+        var n = (typeof data[g.key] === 'number') ? data[g.key] : 0;
+        return '<div class="play-count" style="margin-bottom:6px">' +
+          '<span class="pico" style="font-size:0.9rem">🎮</span> <span class="pname" style="flex:1">'+g.label+'</span>' +
+          '<b style="color:var(--accent);font-size:1rem">'+n.toLocaleString()+'</b>' +
+          '<span class="phint">plays</span></div>';
+      }).join('');
+      if (pg) pg.innerHTML = rows;
     });
   }
   renderTabs(); renderPanel();
