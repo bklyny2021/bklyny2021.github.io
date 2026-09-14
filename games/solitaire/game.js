@@ -48,7 +48,8 @@
     playAgain: $('play-again'),
     nameModal: $('name-modal'),
     nameInput: $('name-input'),
-    nameOk: $('name-ok')
+    nameOk: $('name-ok'),
+    undoBtn: $('undo')
   };
 
   /* The name shown on the leaderboard. Persisted so it survives reloads. */
@@ -137,6 +138,42 @@
   };
   var timerHandle = null;
   var drag = null; // active drag {el, cards[], sourceType, sourceIndex, startX, startY}
+
+  /* ------------------------------------------------------------------ */
+  /* Undo — steps back ONLY the last stock deal (the 3-card draw).      */
+  /* ------------------------------------------------------------------ */
+  var lastDeal = null; // full-board snapshot before the most recent draw
+  function rememberBeforeDeal() {
+    lastDeal = {
+      stock: state.stock.slice(),
+      waste: state.waste.slice(),
+      foundations: state.foundations.map(function (f) { return f.slice(); }),
+      tableau: state.tableau.map(function (t) { return t.slice(); }),
+      score: state.score,
+      moves: state.moves,
+      won: state.won
+    };
+    updateUndoButton();
+  }
+  function undoDeal() {
+    if (!lastDeal) return;
+    state.stock = lastDeal.stock;
+    state.waste = lastDeal.waste;
+    state.foundations = lastDeal.foundations;
+    state.tableau = lastDeal.tableau;
+    state.score = lastDeal.score;
+    state.moves = lastDeal.moves;
+    state.won = lastDeal.won;
+    lastDeal = null;
+    els.score.textContent = String(state.score);
+    syncMoves();
+    renderBoard();
+    updateUndoButton();
+    SND.slide();
+  }
+  function updateUndoButton() {
+    if (els.undoBtn) els.undoBtn.disabled = !lastDeal;
+  }
 
   /* ------------------------------------------------------------------ */
   /* Deck                                                               */
@@ -303,6 +340,8 @@
   }
   function drawFromStock() {
     if (state.won) return;
+    // remember the state before this deal so Undo can step it back
+    rememberBeforeDeal();
     if (!state.stock.length) {
       // recycle waste -> stock, score penalty (only on non-initial pass)
       if (state.waste.length) {
@@ -703,6 +742,7 @@
     els.newGame.addEventListener('click', promptForName);
     els.restart.addEventListener('click', newGame);
     els.playAgain.addEventListener('click', function () { els.winModal.classList.remove('show'); newGame(); });
+    if (els.undoBtn) els.undoBtn.addEventListener('click', undoDeal);
 
     // Name modal: confirm with button or Enter
     els.nameOk.addEventListener('click', confirmName);
@@ -785,6 +825,7 @@
   /* ------------------------------------------------------------------ */
   function newGame() {
     if (timerHandle) clearInterval(timerHandle);
+    lastDeal = null; updateUndoButton();
     // Times played (localStorage, counts every deal even if not finished)
     try { if (typeof LoLifeGames !== 'undefined') LoLifeGames.countPlay('solitaire'); } catch (e) {}
     var deck = shuffle(makeDeck());
