@@ -64,6 +64,8 @@
     display: flex; flex-direction: column;
   }
   .card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .card.coming { opacity: 0.72; border-style: dashed; }
+  .card.coming:hover { transform: none; opacity: 0.9; }
   .card h3 { color: var(--accent); margin-bottom: 8px; font-size: 1.15rem; }
   .card p { color: var(--dim); font-size: 0.9rem; flex: 1; }
   .card .feature-list { color: var(--dim); font-size: 0.8rem; margin-top: 8px; line-height: 1.7; }
@@ -207,6 +209,30 @@
       </p>
       <a class="play-link" href="games/solitaire/index.html">▶ Play Lo-Lifes Solitaire</a>
       <span class="status live">Playable</span>
+    </div>
+
+    <!-- Lo-Lifes Spit -->
+    <div class="card coming">
+      <h3>💨 Lo-Lifes Spit</h3>
+      <p>Fast-paced speed matching — race to dump your pile before the other players. Coming to Lo-Lifes Games soon.</p>
+      <p class="feature-list">
+        ⚡ Speed matching — no turns, just slap cards down fast<br>
+                        🃏 Lo-Lifes street rules — coming with the full 54-card deck<br>
+                        📱 Phone + desktop ready
+      </p>
+      <span class="status soon">Coming Soon</span>
+    </div>
+
+    <!-- Lo-Lifes Crazy Eights -->
+    <div class="card coming">
+      <h3>8️⃣ Lo-Lifes Crazy Eights</h3>
+      <p>Classic shedding game — match rank or suit, drop 8s to switch suits, first to empty their hand wins. Coming to Lo-Lifes Games soon.</p>
+      <p class="feature-list">
+        ♥️ Match rank or suit — keep the table moving<br>
+                        8️⃣ Eights are wild — call the next suit<br>
+                        🃏 Lo-Lifes street rules — full 54-card deck
+      </p>
+      <span class="status soon">Coming Soon</span>
     </div>
   </div>
 
