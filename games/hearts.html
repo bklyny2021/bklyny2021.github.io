@@ -21,24 +21,46 @@ body { background:#0f172a; }
 }
 .trick-card{ position:absolute; }
 .glog{ background:rgba(15,23,42,.6); border:1px solid #334155; border-radius:8px; max-height:190px; overflow-y:auto; font-size:12px; line-height:1.55; }
+.log-scroll::-webkit-scrollbar { width:4px; } .log-scroll::-webkit-scrollbar-thumb { background:#334155;border-radius:4px; }
+@media (max-width:640px){ #log-window { width:min(280px,88vw); height:min(260px,52vh); } }
 .btn{ padding:6px 14px; border-radius:8px; font-weight:700; font-size:13px; cursor:pointer; border:none; }
 .btn-em{ background:#10b981; color:#052e16; } .btn-em:disabled{ opacity:.4; cursor:default; }
 .btn-cy{ background:#22d3ee; color:#083344; } .btn-cy:disabled{ opacity:.4; cursor:default; }
 .btn-gr{ background:#334155; color:#cbd5e1; }
 </style>
 </head>
-<body class="poker-felt min-h-screen text-slate-200">
-<div id="app" class="max-w-5xl mx-auto px-2 py-3">
-  <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
-    <h1 class="text-emerald-400 font-black tracking-wide text-lg">♥ LO-LIFES HEARTS ♥</h1>
-    <div class="text-[10px] text-slate-400">Game to 100 · lowest score wins</div>
+<body class="poker-felt min-h-screen flex flex-col text-slate-200">
+<!-- HEADER / SCOREBOARD -->
+<header class="bg-slate-900/90 backdrop-blur border-b border-emerald-800 px-3 py-2 shrink-0">
+  <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+    <div class="flex items-center gap-3">
+      <span class="text-xl">🖤</span>
+      <h1 class="font-black text-lg tracking-wide text-emerald-400">♥ LO-LIFES HEARTS ♥</h1>
+      <span id="round-badge" class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400">Round 1</span>
+      <span id="phase-badge" class="text-[10px] bg-slate-800 px-2 py-0.5 rounded-full text-slate-400">Starting…</span>
+    </div>
+    <div class="flex items-center gap-4 text-sm">
+      <div class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-1 border border-slate-600"><span class="text-[10px] text-blue-300 font-bold">YOU</span><span id="score-you" class="font-mono font-black text-xl text-emerald-400">0</span></div>
+      <div class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-1 border border-slate-600"><span class="text-[10px] text-red-300 font-bold">EAST</span><span id="score-east" class="font-mono font-black text-xl text-emerald-400">0</span></div>
+      <div class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-1 border border-slate-600"><span class="text-[10px] text-purple-300 font-bold">NORTH</span><span id="score-north" class="font-mono font-black text-xl text-emerald-400">0</span></div>
+      <div class="flex items-center gap-2 bg-slate-800/60 rounded-lg px-3 py-1 border border-slate-600"><span class="text-[10px] text-amber-300 font-bold">WEST</span><span id="score-west" class="font-mono font-black text-xl text-emerald-400">0</span></div>
+    </div>
     <div class="flex items-center gap-1">
-      <button id="sound-btn" onclick="toggleSound(); this.classList.toggle('opacity-40')" title="Toggle sound" class="bg-slate-700 text-slate-200 text-xs font-bold px-2.5 py-1.5 rounded transition">🔊</button>
-      <button id="btn-new" class="btn btn-gr text-[11px] py-1 px-3" onclick="resetGame()">New Game</button>
+      <button onclick="toggleSound(); this.classList.toggle('opacity-40')" id="sound-btn" title="Toggle sound" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold px-2.5 py-1.5 rounded transition">🔊</button>
+      <button onclick="resetGame()" class="bg-emerald-700 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded transition">New Game</button>
     </div>
   </div>
+  <!-- trick tracker bar -->
+  <div class="max-w-7xl mx-auto mt-1 pt-1 border-t border-slate-800 flex items-center justify-center gap-4 text-[11px]">
+    <span class="text-slate-400">Game to 100 · lowest score wins</span>
+    <span class="text-slate-700">|</span>
+    <span id="hearts-status" class="text-slate-400">♥ Hearts sealed</span>
+  </div>
+</header>
 
-  <div id="table" class="relative bg-black/30 rounded-xl border border-emerald-900/50 p-2 min-h-[400px] mb-2">
+<!-- MAIN PLAY AREA -->
+<main class="relative flex-1 min-h-0 px-2 py-3" style="max-width:1000px;margin:0 auto">
+  <div id="table" class="relative bg-black/30 rounded-xl border border-emerald-900/50 p-2 min-h-[400px]">
     <div id="trick-area" class="absolute inset-0 pointer-events-none"></div>
     <div id="seat-east"   class="seat absolute right-[4%] top-[30%]"></div>
     <div id="seat-north"  class="seat absolute left-1/2 -translate-x-1/2 top-[4%]"></div>
@@ -47,32 +69,33 @@ body { background:#0f172a; }
     <div id="turn-msg" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center bg-black/60 rounded-lg px-3 py-1 text-[12px] text-emerald-100 pointer-events-none"></div>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
-    <div class="bg-slate-900/60 rounded-lg border border-slate-700 p-2">
-      <div class="text-[11px] font-bold text-emerald-300 mb-1">SCOREBOARD</div>
-      <div id="scoreboard" class="text-sm"></div>
-    </div>
-    <div class="bg-slate-900/60 rounded-lg border border-slate-700 p-2">
-      <div class="text-[11px] font-bold text-emerald-300 mb-1">GAME LOG</div>
-      <div id="log" class="glog"></div>
-    </div>
-  </div>
-
-  <div class="bg-slate-900/70 rounded-xl border border-emerald-800/50 p-2">
+  <!-- YOUR HAND -->
+  <div class="bg-slate-900/70 rounded-xl border border-emerald-800/50 p-2 mt-2">
     <div class="flex justify-between items-center mb-1 flex-wrap gap-1">
       <div class="text-[11px] font-bold text-emerald-300">YOUR HAND</div>
       <div id="turn-hint" class="text-[12px] text-slate-300"></div>
-      <div id="hand-actions" class="flex gap-2"></div>
     </div>
     <div id="my-hand" class="flex flex-wrap gap-1.5 justify-center min-h-[64px]"></div>
   </div>
 
+  <!-- PASS PANEL: only visible during the passing phase -->
   <div id="pass-panel" class="hidden bg-slate-800/90 rounded-xl border border-cyan-500/50 p-3 mt-2 text-center">
     <div class="text-sm font-bold text-cyan-200 mb-1">HANDS-OFF — passing phase</div>
     <div id="pass-msg" class="text-xs text-slate-400 mb-2"></div>
     <div id="pass-btns" class="flex gap-2 justify-center"></div>
   </div>
+</main>
+
+<!-- GAME LOG: detached floating window (like Spades), closed by default -->
+<div id="log-window" class="hidden fixed bottom-14 right-3 z-40 w-72 h-72 max-h-72 flex flex-col rounded-xl border border-slate-600 bg-slate-900/95 backdrop-blur shadow-2xl overflow-hidden">
+  <div class="flex justify-between items-center px-2 py-1 border-b border-slate-700 bg-slate-800/60">
+    <span class="text-[10px] uppercase font-bold tracking-widest text-slate-400">📋 Game Log</span>
+    <button onclick="toggleLogWindow()" class="text-slate-400 hover:text-slate-200 text-sm leading-none px-1">✕</button>
+  </div>
+  <div id="log" class="flex-1 overflow-y-auto log-scroll space-y-0.5 text-[11px] font-mono text-slate-300 p-2"></div>
+  <button onclick="clearLog()" class="shrink-0 px-2 py-1 text-[10px] text-slate-500 hover:text-slate-300 border-t border-slate-700 bg-slate-800/50">Clear Log</button>
 </div>
+<button id="toggle-log-btn" onclick="toggleLogWindow()" title="Game Log" class="fixed bottom-3 right-3 z-40 bg-slate-800 hover:bg-slate-700 text-slate-300 w-10 h-10 rounded-full flex items-center justify-center shadow-lg border border-slate-600 text-base">📋</button>
 
 <div id="modal" class="hidden fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
   <div id="modal-box" class="bg-emerald-900 rounded-2xl border-2 border-emerald-400 p-6 max-w-sm w-full text-center shadow-2xl"></div>
@@ -442,25 +465,35 @@ function renderTrickOnTable(){
 function renderTable(){
   renderOpponents();
   renderTrickOnTable();
+  renderScoreboard();
   setMsg(S.phase==='over'?'':'');
 }
 function renderScoreboard(){
-  const el=$('scoreboard');
-  let h='<table class="w-full text-[13px]"><tr class="text-slate-400 text-[11px]"><td></td>';
-  SEAT_NAMES.forEach(n=>h+='<td>'+n+'</td>');
-  h+='</tr><tr class="font-bold text-emerald-200"><td>Total</td>';
-  S.scores.forEach(s=>h+='<td>'+s+'</td>');
-  h+='</tr><tr class="text-slate-400 text-[11px]"><td>This hand</td>';
-  for(let i=0;i<4;i++) h+='<td>'+roundTotalOf(i)+'</td>';
-  h+='</tr><tr class="text-slate-400 text-[10px]"><td>Cards</td>';
-  for(let i=0;i<4;i++) h+='<td>'+S.captured[i].map(c=>rk(c.rank)+SUIT_SYM[c.suit]).join(' ')+'</td>';
-  h+='</tr></table>';
-  el.innerHTML=h;
+  // Update the header score chips + badges (Spades-style top scoreboard).
+  const ids={0:'score-you',1:'score-east',2:'score-north',3:'score-west'};
+  for(let i=0;i<4;i++){ const el=$(ids[i]); if(el) el.textContent=S.scores[i]; }
+  const rb=$('round-badge'); if(rb) rb.textContent='Round '+S.round;
+  const hs=$('hearts-status'); if(hs) hs.textContent = S.heartsBroken ? '♥ Hearts broken' : '♥ Hearts sealed';
+  const pb=$('phase-badge'); if(pb){
+    if(S.phase==='pass') pb.textContent='Passing phase';
+    else if(S.phase==='over') pb.textContent='Game over';
+    else if(S.phase==='play') pb.textContent='Play — '+(S.curPlayer!=null?SEAT_NAMES[S.curPlayer]+"'s turn":"starting…");
+    else pb.textContent='Starting…';
+  }
 }
 function setMsg(t){ $('turn-msg').textContent=t; }
 function setHint(t){ $('turn-hint').textContent=t; }
 function log(msg){ const el=$('log'); const d=document.createElement('div'); d.innerHTML=msg; el.prepend(d); while(el.children.length>100) el.lastChild.remove(); }
 function logBad(m){ log('<span class="text-red-400">'+m+'</span>'); }
+window.clearLog=function(){ const el=document.getElementById('log'); if(el) el.innerHTML=''; };
+window.toggleLogWindow=function(){ const w=document.getElementById('log-window'); if(w) w.classList.toggle('hidden'); };
+(function initLogDrag(){
+  const win=document.getElementById('log-window'); if(!win) return;
+  let dragging=false, offX=0, offY=0;
+  win.addEventListener('mousedown',function(e){ if(e.target.closest('button')) return; dragging=true; offX=e.clientX-win.getBoundingClientRect().left; offY=e.clientY-win.getBoundingClientRect().top; });
+  window.addEventListener('mousemove',function(e){ if(!dragging) return; const x=Math.min(window.innerWidth-30,Math.max(0,e.clientX-offX)); const y=Math.min(window.innerHeight-30,Math.max(0,e.clientY-offY)); win.style.left=x+'px'; win.style.top=y+'px'; win.style.right='auto'; win.style.bottom='auto'; });
+  window.addEventListener('mouseup',function(){ dragging=false; });
+})();
 function showModal(html,btn){
   $('modal-box').innerHTML='<div class="text-2xl mb-3">'+html.split('<br>')[0]+'</div><div class="mb-4">'+html+'</div><button class="btn btn-em" onclick="closeModal()">'+btn+'</button>';
   $('modal').classList.remove('hidden');
@@ -471,9 +504,8 @@ window.closeModal=function(){ $('modal').classList.add('hidden'); resetGame(); }
 window.resetGame=function(){
   try{ if(typeof LoLifeWorldCounter!=='undefined')LoLifeWorldCounter.record('dirty_hearts'); }catch(e){}
   try{ if(typeof LoLifeGames!=='undefined')LoLifeGames.countPlay('dirty_hearts'); }catch(e){}
-  S.scores=[0,0,0,0]; S.round=0; S.passDir='L'; S.winner=-1; S.phase='idle';
+  S.scores=[0,0,0,0]; S.round=1; S.passDir='L'; S.winner=-1; S.phase='idle';
   startHand();
-  S.round=1;
   log('--- NEW GAME: Lo-Lifes Hearts (to 100, lowest wins) ---');
   startPassing();
 };
