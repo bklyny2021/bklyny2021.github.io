@@ -62,5 +62,16 @@ window.LoLifeGames = (function () {
     }
     return [...games];
   }
-  return { getScores, addScore, getLog, addLog, gamesWithData };
+  // Times Played — increments on every game launch/start, whether finished or not.
+  function getPlays(game) {
+    var n = 0;
+    try { n = parseInt(localStorage.getItem(PREFIX + 'plays_' + game) || '0', 10); }
+    catch (e) {}
+    return isNaN(n) ? 0 : n;
+  }
+  function countPlay(game) {
+    write(PREFIX + 'plays_' + game, getPlays(game) + 1);
+    return getPlays(game);
+  }
+  return { getScores, addScore, getLog, addLog, gamesWithData, getPlays, countPlay };
 })();

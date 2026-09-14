@@ -142,6 +142,15 @@
   .pdetail { color: var(--dim); font-size: 0.78rem; width: 130px; text-align: right; flex-shrink: 0; }
   .pwhen { color: var(--dim); font-size: 0.72rem; width: 130px; text-align: right; flex-shrink: 0; }
   .empty { color: var(--dim); font-size: 0.85rem; padding: 8px 2px; font-style: italic; }
+  .play-count {
+    display: flex; gap: 7px; align-items: center; font-size: 0.95rem;
+    padding: 8px 10px; border-radius: 8px; margin-bottom: 8px;
+    background: rgba(79,195,247,0.08); border: 1px solid var(--border);
+    color: #fff;
+  }
+  .play-count b { color: var(--accent); font-size: 1.1rem; }
+  .play-count .pico { font-size: 0.9rem; }
+  .play-count .phint { color: var(--dim); font-size: 0.72rem; margin-left: auto; }
   .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
   .clear-btn {
     color: var(--dim); background: none; border: 1px solid var(--border); border-radius: 6px;
@@ -211,6 +220,7 @@
     <div class="cols">
       <div>
         <h3 style="color:var(--accent);font-size:1rem;margin-bottom:8px">High Scores</h3>
+        <div id="lb-plays" style="margin-bottom:8px"></div>
         <div id="lb-scores"><p class="empty">No scores yet — play a game!</p></div>
       </div>
       <div>
@@ -236,6 +246,7 @@
   var tabsEl = document.getElementById('lb-tabs');
   var scoresEl = document.getElementById('lb-scores');
   var logEl = document.getElementById('lb-log');
+  var playsEl = document.getElementById('lb-plays');
   var activeGame = 'spades';
 
   function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -249,6 +260,9 @@
   window.__lbSel = function(g){ activeGame = g; renderTabs(); renderPanel(); };
 
   function renderPanel(){
+    var plays = LoLifeGames.getPlays(activeGame);
+    playsEl.innerHTML = '<div class="play-count"><span class="pico">▶️</span> Times Played: <b>' + plays +
+      '</b><span class="phint"> every launch counts, finished or not</span></div>';
     var scores = LoLifeGames.getScores(activeGame, 10);
     if (scores.length){
       scoresEl.innerHTML = scores.map(function(r,i){

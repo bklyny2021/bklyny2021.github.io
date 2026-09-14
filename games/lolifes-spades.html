@@ -1042,6 +1042,8 @@ async function endRound(){
 
 /* ===== NEW GAME ===== */
 window.resetGame=function(){
+  // Times played (localStorage, counts every launch/new game even if not finished)
+  try { if (typeof LoLifeGames !== 'undefined') LoLifeGames.countPlay('spades'); } catch (e) {}
   $id('round-modal').classList.add('hidden');
   $id('bidding-modal').classList.add('hidden');
   initState();
@@ -1061,6 +1063,7 @@ function drawScoreboardPlaceholders(){
 }
 
 /* ===== START ===== */
+try { if (typeof LoLifeGames !== 'undefined') LoLifeGames.countPlay('spades'); } catch (e) {}
 initState();
 drawScoreboardPlaceholders();
 startRound();

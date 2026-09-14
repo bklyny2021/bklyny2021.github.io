@@ -739,6 +739,8 @@
   /* ------------------------------------------------------------------ */
   function newGame() {
     if (timerHandle) clearInterval(timerHandle);
+    // Times played (localStorage, counts every deal even if not finished)
+    try { if (typeof LoLifeGames !== 'undefined') LoLifeGames.countPlay('solitaire'); } catch (e) {}
     var deck = shuffle(makeDeck());
     var k = 0;
     var tableau = [];
