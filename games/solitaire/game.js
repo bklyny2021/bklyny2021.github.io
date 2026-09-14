@@ -624,6 +624,39 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* Deck integrity (hard rule: real 52-card deck, no dupes, none missing) */
+  /* ------------------------------------------------------------------ */
+  function verifyDeckIntegrity() {
+    // gather every card currently in play
+    var seen = {};
+    var count = 0;
+    var all = [];
+    for (var i = 0; i < 7; i++) all.push.apply(all, state.tableau[i]);
+    all.push.apply(all, state.stock);
+    all.push.apply(all, state.waste);
+    for (var f = 0; f < 4; f++) all.push.apply(all, state.foundations[f]);
+    all.forEach(function (c) {
+      var key = c.suit + c.rank;
+      if (!seen[key]) seen[key] = 0;
+      seen[key]++;
+      count++;
+    });
+    // exactly 52 unique cards, no dup, no missing
+    var uniq = Object.keys(seen).length;
+    var dupFound = Object.keys(seen).some(function (k) { return seen[k] > 1; });
+    var totalExpected = 52;
+    // verify all 4 suits x 13 ranks present
+    var complete = true;
+    for (var s = 0; s < SUITS.length; s++) {
+      for (var r = 1; r <= 13; r++) {
+        if (seen[SUITS[s] + r] !== 1) { complete = false; break; }
+      }
+    }
+    var ok = (count === totalExpected) && (uniq === totalExpected) && !dupFound && complete;
+    return { ok: ok, count: count, uniq: uniq, dupFound: dupFound, complete: complete };
+  }
+
+  /* ------------------------------------------------------------------ */
   /* Setup                                                              */
   /* ------------------------------------------------------------------ */
   function newGame() {
@@ -656,6 +689,15 @@
     els.timer.textContent = '00:00';
     syncMoves();
     renderBoard();
+    // DECK INTEGRITY GUARD: every card must be present exactly once, no dupes, none missing.
+    // If the verifier ever fails, force a fresh honest deck (never deal a broken one).
+    var integrity = verifyDeckIntegrity();
+    if (!integrity.ok) {
+      if (window.console) console.error('Deck integrity failed:', integrity);
+      state = { stock: [], waste: [], foundations: [[], [], [], []], tableau: [[], [], [], [], [], [], []],
+                score: 0, moves: 0, seconds: 0, won: false, started: true };
+      renderBoard();
+    }
     // start timer
     timerHandle = setInterval(tick, 1000);
   }
