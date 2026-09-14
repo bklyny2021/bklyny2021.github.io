@@ -18,7 +18,7 @@ body { background:#0f172a; }
 .card-face.dimmed { opacity:.45; pointer-events:none; }
 .card-back { width:48px; height:68px; border-radius:6px; background:linear-gradient(135deg,#1e3a5f,#2563eb); border:2px solid #60a5fa; display:inline-flex; align-items:center; justify-content:center; color:#60a5fa; font-weight:bold; font-size:10px; margin:-12px; box-shadow:0 1px 4px rgba(0,0,0,.3); }
 .card-back-img { width:48px; height:68px; border-radius:6px; margin:-12px; box-shadow:0 1px 4px rgba(0,0,0,.35); overflow:hidden; flex-shrink:0; }
-.trick-card { width:56px; height:80px; border-radius:6px; background:#fff; display:flex; flex-direction:column; justify-content:space-between; padding:3px; box-shadow:0 2px 10px rgba(0,0,0,.5); animation:dealCard .3s ease-out; font-family:'Segoe UI Emoji','Apple Color Emoji',sans-serif; }
+.trick-card { width:76px; height:108px; border-radius:8px; background:#fff; display:flex; flex-direction:column; justify-content:space-between; padding:5px; box-shadow:0 3px 14px rgba(0,0,0,.55); animation:dealCard .3s ease-out; font-family:'Segoe UI Emoji','Apple Color Emoji',sans-serif; }
 @keyframes dealCard { from{opacity:0;transform:scale(.5)} to{opacity:1;transform:scale(1)} }
 /* deal: cards fly in from a table origin (top-center is the "deck") */
 @keyframes flyDeal { from{opacity:0;transform:translateY(-30vh) scale(.4) rotate(8deg);} to{opacity:1;transform:translateY(0) scale(1) rotate(0);} }
@@ -38,7 +38,7 @@ body { background:#0f172a; }
 @keyframes modalIn { from{opacity:0;transform:scale(.9)} to{opacity:1;transform:scale(1)} }
 @media(max-width:768px){
   .card-face { width:44px; height:62px; font-size:9px; padding:3px; }
-  .trick-card { width:38px; height:54px; font-size:9px; padding:2px; }
+  .trick-card { width:52px; height:74px; font-size:10px; padding:2px; }
   .card-back, .card-back-img { width:30px; height:42px; margin:-6px; }
   .card-back-img img { border-radius:4px; }
   /* Compress the header so the table gets the vertical room */
@@ -50,8 +50,8 @@ body { background:#0f172a; }
   /* Shrink + tighten the fixed containers so the 4 hands + center fit a phone */
   #hand-north { transform:scale(.7); margin-bottom:-10px; }
   #hand-west, #hand-east { transform:scale(.7); }
-  /* center trick box smaller on phones */
-  main .relative.w-48, main .relative.sm\:w-56 { width:132px !important; height:132px !important; }
+  /* center trick box on phones (larger because center cards are bigger) */
+  main .relative.w-56 { width:156px !important; height:156px !important; }
   /* South hand fanned tighter so 13 cards fit */
   #hand-south { -webkit-overflow-scrolling:touch; }
   #hand-south:not(.full) { transform:scale(.8); margin-bottom:-8px; }
@@ -65,7 +65,7 @@ body { background:#0f172a; }
   #hand-north { transform:scale(.62); }
   #hand-west, #hand-east { transform:scale(.62); }
   #hand-south:not(.full) { transform:scale(.74); }
-  main .relative.w-48, main .relative.sm\:w-56 { width:110px !important; height:110px !important; }
+  main .relative.w-56 { width:136px !important; height:136px !important; }
   header .text-xs { font-size:9px; }
 }
 </style>
@@ -140,16 +140,16 @@ body { background:#0f172a; }
 
   <!-- CENTER TRICK AREA -->
   <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-[5]">
-    <div class="relative w-48 h-48 sm:w-56 sm:h-56">
+    <div class="relative w-56 h-56 sm:w-72 sm:h-72">
       <!-- Played card positions (kept inside center box, clear of the side players) -->
       <div id="play-north" class="absolute -top-3 left-1/2 -translate-x-1/2 transition-all duration-300"></div>
       <div id="play-south" class="absolute -bottom-3 left-1/2 -translate-x-1/2 transition-all duration-300"></div>
       <div id="play-west" class="absolute left-0 top-1/2 -translate-y-1/2 transition-all duration-300"></div>
       <div id="play-east" class="absolute right-0 top-1/2 -translate-y-1/2 transition-all duration-300"></div>
 
-      <!-- Center info bubble -->
-      <div id="center-bubble" class="absolute inset-0 m-auto w-36 h-16 flex items-center justify-center bg-black/40 backdrop-blur-sm rounded-xl border border-white/10 text-center pointer-events-none">
-        <p id="center-text" class="text-xs text-slate-300 leading-tight">Dealing cards...</p>
+      <!-- Center info bubble (no backdrop — keep the played cards fully visible) -->
+      <div id="center-bubble" class="absolute inset-0 m-auto w-40 h-12 flex items-center justify-center text-center pointer-events-none">
+        <p id="center-text" class="text-xs text-slate-300 font-bold leading-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">Dealing cards...</p>
       </div>
     </div>
   </div>
