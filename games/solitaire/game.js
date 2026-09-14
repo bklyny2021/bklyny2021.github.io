@@ -1,5 +1,5 @@
 /* =========================================================================
-   Lo-Life Solitaire — Klondike (production build)
+   Lo-Lifes Solitaire — Klondike (production build)
    Filename: game.js
    Standard rules, exact scoring, drag-and-drop, auto-move, win modal.
    ========================================================================= */
